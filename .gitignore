@@ -1,0 +1,12 @@
+node_modules/
+.next/
+coverage/
+dist/
+.env
+.env.local
+.DS_Store
+apps/api/.env
+apps/web/.env.local
+*.log
+.agents/
+.agents/*

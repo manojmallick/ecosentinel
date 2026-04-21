@@ -1,0 +1,14 @@
+{
+  "name": "ecosentinel",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:api": "npm --prefix apps/api run dev",
+    "dev:web": "npm --prefix apps/web run dev",
+    "lint:api": "npm --prefix apps/api run lint",
+    "test:api": "npm --prefix apps/api run test",
+    "lint:web": "npm --prefix apps/web run lint",
+    "build:web": "npm --prefix apps/web run build"
+  },
+  "devDependencies": {}
+}
