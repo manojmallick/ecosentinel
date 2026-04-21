@@ -10,4 +10,3 @@ apps/web/.env.local
 *.log
 .agents/
 .agents/*
-AGENTS.MD
