@@ -4,6 +4,7 @@ const express = require("express");
 const { router: aqiRouter } = require("./routes/aqi");
 const { router: healthRouter } = require("./routes/health");
 const { router: historyRouter } = require("./routes/history");
+const { router: reportRouter } = require("./routes/report");
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get("/", (_req, res) => {
 app.use("/api/aqi", aqiRouter);
 app.use("/api/history", historyRouter);
 app.use("/api/health", healthRouter);
+app.use("/api/report", reportRouter);
 
 app.use((error, _req, res, next) => {
   void next;
