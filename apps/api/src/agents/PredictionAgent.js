@@ -6,7 +6,7 @@ const AuditLogger = require("../services/AuditLogger");
 
 const DEFAULT_INPUT_HOURS = 48;
 const DEFAULT_OUTPUT_HOURS = 24;
-const DEFAULT_MODEL_PATH = "../../ml/model/tfjs/model.json";
+const DEFAULT_MODEL_PATH = "../../../ml/model/tfjs/model.json";
 const DEFAULT_MODEL_VERSION = "lstm-v1.0.0";
 
 let cachedModelPromise;

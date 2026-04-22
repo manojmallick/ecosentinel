@@ -1,0 +1,47 @@
+# EcoSentinel Deployment
+
+This repo deploys as two services:
+
+- `apps/web` on Vercel
+- `apps/api` on Railway
+
+## Vercel
+
+1. Import the GitHub repository into Vercel.
+2. Set the project Root Directory to `apps/web`.
+3. Vercel will read [`apps/web/vercel.json`](apps/web/vercel.json) for the framework and build commands.
+4. Configure these environment variables:
+   - `NEXT_PUBLIC_API_URL=https://<your-railway-public-domain>`
+   - `NEXT_PUBLIC_DRIFT_ALERT_THRESHOLD=20`
+   - `NEXT_PUBLIC_MAP_LAT=52.3676`
+   - `NEXT_PUBLIC_MAP_LNG=4.9041`
+
+## Railway
+
+1. Create a new Railway service from this repository.
+2. Set the service Root Directory to `apps/api`.
+3. Set the Railway config file path to `/apps/api/railway.json`.
+4. Attach a PostgreSQL service and expose the API service publicly.
+5. Railway will use [`apps/api/railway.json`](apps/api/railway.json) for the start command and health check.
+
+Configure these environment variables on the Railway service:
+
+- `PORT=3001`
+- `DATABASE_URL=<railway-postgres-connection-string>`
+- `OPENAQ_API_KEY=` (optional)
+- `IQAIR_API_KEY=<required for live secondary AQI source>`
+- `OPENAI_API_KEY=` (optional, chatbot falls back locally if omitted)
+- `OPENAI_MODEL=gpt-4o-mini`
+- `SIGNING_PRIVATE_KEY=` (optional but recommended for signed forecasts)
+- `SIGNING_PUBLIC_KEY=` (optional but recommended for verification output)
+- `PREDICTION_INPUT_HOURS=48`
+- `PREDICTION_OUTPUT_HOURS=24`
+- `PREDICTION_MODEL_VERSION=lstm-v1.0.0`
+- `TFJS_MODEL_PATH=../../../ml/model/tfjs/model.json`
+
+## Deployment Notes
+
+- The API health check path is `/api/health`.
+- The frontend should always point at the Railway public API URL through `NEXT_PUBLIC_API_URL`.
+- If the TFJS model artifact is not present in the deployment image, the prediction service will fall back to the deterministic forecast path instead of crashing.
+- Vercel and Railway both build from subdirectories in this monorepo, so the configured root directories matter.
