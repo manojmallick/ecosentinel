@@ -115,7 +115,8 @@ describe("PredictionAgent", () => {
         outputHours: 24,
         modelPath: "../../ml/model/tfjs/model.json",
         modelVersion: "lstm-v1.0.0"
-      }
+      },
+      signOutput: false
     });
 
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("FROM aqi_readings"), [52.3676, 4.9041, 24]);
@@ -138,8 +139,49 @@ describe("PredictionAgent", () => {
       generateForecast({
         lat: 52.3676,
         lng: 4.9041,
-        model: null
+        model: null,
+        signOutput: false
       })
     ).rejects.toThrow("Not enough AQI history to generate a forecast");
+  });
+
+  it("signs prediction output when signing is enabled", async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: buildHistory(24)
+    });
+
+    const auditLogger = {
+      signPredictionOutput: jest.fn(async (forecast) => ({
+        ...forecast,
+        signature: "signed",
+        publicKey: "public"
+      }))
+    };
+
+    const forecast = await generateForecast({
+      lat: 52.3676,
+      lng: 4.9041,
+      model: null,
+      signOutput: true,
+      auditLogger,
+      config: {
+        inputHours: 24,
+        outputHours: 24,
+        modelPath: "../../ml/model/tfjs/model.json",
+        modelVersion: "lstm-v1.0.0"
+      }
+    });
+
+    expect(auditLogger.signPredictionOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lat: 52.3676,
+        lng: 4.9041,
+        modelVersion: "lstm-v1.0.0",
+        forecast: expect.any(Array)
+      }),
+      { db: pool }
+    );
+    expect(forecast.signature).toBe("signed");
+    expect(forecast.publicKey).toBe("public");
   });
 });

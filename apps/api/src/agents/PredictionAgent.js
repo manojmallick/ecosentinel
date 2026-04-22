@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const pool = require("../db/pool");
+const AuditLogger = require("../services/AuditLogger");
 
 const DEFAULT_INPUT_HOURS = 48;
 const DEFAULT_OUTPUT_HOURS = 24;
@@ -198,7 +199,9 @@ async function generateForecast({
   now = new Date(),
   db = pool,
   model = undefined,
-  config = getPredictionConfig()
+  config = getPredictionConfig(),
+  signOutput = Boolean(process.env.SIGNING_PRIVATE_KEY),
+  auditLogger = AuditLogger
 }) {
   const readings = await fetchRecentReadings({
     lat,
@@ -218,7 +221,7 @@ async function generateForecast({
     model: predictionModel
   });
 
-  return {
+  const forecastPayload = {
     lat,
     lng,
     generatedAt: now.toISOString(),
@@ -227,6 +230,12 @@ async function generateForecast({
     sourceWindowHours: readings.length,
     forecast: result.forecast
   };
+
+  if (signOutput && auditLogger?.signPredictionOutput) {
+    return auditLogger.signPredictionOutput(forecastPayload, { db });
+  }
+
+  return forecastPayload;
 }
 
 module.exports = {
