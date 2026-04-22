@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 import AQICard from "./AQICard";
 import AQIMap from "./AQIMap";
@@ -32,14 +33,26 @@ export default function AQIDashboard() {
           <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_center,_rgba(34,197,94,0.24),_transparent_65%)]" />
           <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-09</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-11</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-white md:text-6xl">
-                Interactive AQI map and forecast outlook for Amsterdam in one dashboard.
+                Interactive AQI map, forecast outlook, and a citizen chat path in one dashboard.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve, so the next
-                pollution spike is visible before it reaches street level.
+                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve and a guided handoff
+                into the citizen advisor experience, so the next pollution spike is visible before it reaches
+                street level and explainable in plain language.
               </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  className="inline-flex items-center justify-center rounded-full bg-emerald-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200"
+                  href="/chat"
+                >
+                  Open citizen advisor
+                </Link>
+                <div className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-200">
+                  Frontend ships with live API fallback
+                </div>
+              </div>
             </div>
 
             <div className="grid gap-4 rounded-[1.75rem] border border-white/10 bg-white/5 p-5">
