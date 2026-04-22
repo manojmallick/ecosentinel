@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import AQICard from "./AQICard";
 import AQIMap from "./AQIMap";
+import DriftAlert from "./DriftAlert";
 import { getAqiBand } from "../lib/aqiColors";
 import { useAqiReadings, useForecast } from "../lib/api";
 
@@ -33,14 +34,14 @@ export default function AQIDashboard() {
           <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_center,_rgba(34,197,94,0.24),_transparent_65%)]" />
           <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-11</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-12</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-white md:text-6xl">
-                Interactive AQI map, forecast outlook, and a citizen chat path in one dashboard.
+                Interactive AQI map, forecast outlook, citizen chat, and drift monitoring in one dashboard.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve and a guided handoff
-                into the citizen advisor experience, so the next pollution spike is visible before it reaches
-                street level and explainable in plain language.
+                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve, a guided handoff
+                into the citizen advisor experience, and a drift monitor that warns when reality outruns the
+                model by 20 AQI points.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -80,6 +81,8 @@ export default function AQIDashboard() {
             </div>
           </div>
         </section>
+
+        <DriftAlert forecast={forecast} forecastStatus={forecastStatus} reading={readings[0]} />
 
         <section className="grid gap-8 xl:grid-cols-[1.3fr_0.9fr]">
           <div className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-4 shadow-[0_35px_110px_-70px_rgba(56,189,248,0.9)] backdrop-blur">
