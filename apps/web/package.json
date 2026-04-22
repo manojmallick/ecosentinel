@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --experimental-strip-types --test src/lib/aqiColors.test.mts"
+    "test": "node --experimental-strip-types --test src/lib/*.test.mts"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",
@@ -15,7 +15,8 @@
     "next": "^14.2.33",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@types/node": "^20.17.46",
