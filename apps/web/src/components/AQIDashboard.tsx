@@ -1,12 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import AQICard from "./AQICard";
 import AQIMap from "./AQIMap";
 import { getAqiBand } from "../lib/aqiColors";
-import { useAqiReadings } from "../lib/api";
+import { useAqiReadings, useForecast } from "../lib/api";
+
+const ForecastChart = dynamic(() => import("./ForecastChart"), {
+  loading: () => (
+    <div className="flex min-h-[360px] items-center justify-center rounded-[2rem] border border-white/10 bg-slate-950/75 text-sm uppercase tracking-[0.25em] text-slate-400">
+      Loading forecast
+    </div>
+  ),
+  ssr: false
+});
 
 export default function AQIDashboard() {
   const { readings, status, lastUpdated } = useAqiReadings();
+  const { forecast, status: forecastStatus } = useForecast(readings[0]);
   const worstReading = readings.reduce((current, reading) => {
     return reading.aqi > current.aqi ? reading : current;
   }, readings[0]);
@@ -20,13 +32,13 @@ export default function AQIDashboard() {
           <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_center,_rgba(34,197,94,0.24),_transparent_65%)]" />
           <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-06</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-09</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-white md:text-6xl">
-                Interactive AQI map for Amsterdam, tuned for quick citizen decisions.
+                Interactive AQI map and forecast outlook for Amsterdam in one dashboard.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                The dashboard polls live AQI readings for key Amsterdam zones, paints them onto an
-                interactive map, and keeps the worst pocket of air pollution impossible to miss.
+                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve, so the next
+                pollution spike is visible before it reaches street level.
               </p>
             </div>
 
@@ -76,6 +88,8 @@ export default function AQIDashboard() {
             ))}
           </div>
         </section>
+
+        <ForecastChart forecast={forecast} status={forecastStatus} />
       </div>
     </main>
   );

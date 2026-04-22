@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getAqiBand } from "./aqiColors";
+import { createFallbackForecastResponse } from "./forecast";
+import type { ForecastResponse } from "./forecast";
 
 export type AqiReading = {
   aqi: number;
@@ -78,6 +80,18 @@ async function fetchReading(point: CollectionPoint): Promise<AqiReading> {
   };
 }
 
+async function fetchForecast(lat: number, lng: number): Promise<ForecastResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/predict?lat=${lat}&lng=${lng}`, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Forecast fetch failed with ${response.status}`);
+  }
+
+  return (await response.json()) as ForecastResponse;
+}
+
 export function useAqiReadings() {
   const [readings, setReadings] = useState<AqiReading[]>(COLLECTION_POINTS.map(buildFallbackReading));
   const [status, setStatus] = useState<"idle" | "live" | "fallback">("idle");
@@ -126,6 +140,65 @@ export function useAqiReadings() {
   return {
     lastUpdated,
     readings,
+    status
+  };
+}
+
+export function useForecast(baseReading?: AqiReading) {
+  const fallback = createFallbackForecastResponse({
+    baseAqi: baseReading?.aqi ?? 54,
+    lat: baseReading?.lat ?? 52.3676,
+    lng: baseReading?.lng ?? 4.9041
+  });
+
+  const [forecast, setForecast] = useState<ForecastResponse>(fallback);
+  const [status, setStatus] = useState<"idle" | "live" | "preview">("idle");
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!baseReading) {
+      return;
+    }
+
+    const reading = baseReading;
+
+    async function refreshForecast() {
+      try {
+        const liveForecast = await fetchForecast(reading.lat, reading.lng);
+
+        if (!isMounted.current) {
+          return;
+        }
+
+        setForecast(liveForecast);
+        setStatus("live");
+      } catch (_error) {
+        if (!isMounted.current) {
+          return;
+        }
+
+        setForecast(
+          createFallbackForecastResponse({
+            baseAqi: reading.aqi,
+            lat: reading.lat,
+            lng: reading.lng
+          })
+        );
+        setStatus("preview");
+      }
+    }
+
+    void refreshForecast();
+  }, [baseReading]);
+
+  return {
+    forecast,
     status
   };
 }
