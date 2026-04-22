@@ -2,13 +2,17 @@ jest.mock("../src/db/pool", () => ({
   query: jest.fn()
 }));
 
+const path = require("path");
+
 const pool = require("../src/db/pool");
 const {
   buildInputWindow,
   createFallbackForecast,
   forecastFromReadings,
   generateForecast,
+  getPredictionConfig,
   normaliseHistory,
+  resolveModelPath,
   shapeModelForecast
 } = require("../src/agents/PredictionAgent");
 
@@ -46,6 +50,14 @@ describe("PredictionAgent", () => {
     );
 
     expect(windowValues).toEqual([42, 42, 42, 42, 45]);
+  });
+
+  it("resolves the default TFJS model path to the repo-level ml directory", () => {
+    const resolvedPath = resolveModelPath(getPredictionConfig().modelPath);
+
+    expect(resolvedPath).toBe(
+      path.resolve(__dirname, "../../ml/model/tfjs/model.json")
+    );
   });
 
   it("creates a 24-hour fallback forecast with confidence bands", () => {
