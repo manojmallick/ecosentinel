@@ -1,7 +1,9 @@
 const cors = require("cors");
 const express = require("express");
 
+const { router: aqiRouter } = require("./routes/aqi");
 const { router: healthRouter } = require("./routes/health");
+const { router: historyRouter } = require("./routes/history");
 
 const app = express();
 
@@ -15,6 +17,17 @@ app.get("/", (_req, res) => {
   });
 });
 
+app.use("/api/aqi", aqiRouter);
+app.use("/api/history", historyRouter);
 app.use("/api/health", healthRouter);
+
+app.use((error, _req, res, next) => {
+  void next;
+  console.error("[api] unhandled route error", error);
+
+  res.status(500).json({
+    error: "Internal server error"
+  });
+});
 
 module.exports = app;
