@@ -6,6 +6,7 @@ import Link from "next/link";
 import AQICard from "./AQICard";
 import AQIMap from "./AQIMap";
 import DriftAlert from "./DriftAlert";
+import ImpactScore from "./ImpactScore";
 import { getAqiBand } from "../lib/aqiColors";
 import { useAqiReadings, useForecast } from "../lib/api";
 
@@ -34,14 +35,14 @@ export default function AQIDashboard() {
           <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_center,_rgba(34,197,94,0.24),_transparent_65%)]" />
           <div className="relative grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-12</p>
+              <p className="text-sm uppercase tracking-[0.35em] text-emerald-300">EcoSentinel F-14</p>
               <h1 className="mt-4 max-w-3xl text-4xl font-semibold leading-tight text-white md:text-6xl">
-                Interactive AQI map, forecast outlook, citizen chat, and drift monitoring in one dashboard.
+                Interactive AQI map, forecast outlook, citizen chat, drift monitoring, and community impact in one dashboard.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
                 The dashboard now pairs live AQI hotspots with a 24-hour forecast curve, a guided handoff
-                into the citizen advisor experience, and a drift monitor that warns when reality outruns the
-                model by 20 AQI points.
+                into the citizen advisor experience, a drift monitor that warns when reality outruns the
+                model by 20 AQI points, and a gamified impact tracker for car-free trips.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -106,6 +107,8 @@ export default function AQIDashboard() {
         </section>
 
         <ForecastChart forecast={forecast} status={forecastStatus} />
+
+        <ImpactScore />
       </div>
     </main>
   );
