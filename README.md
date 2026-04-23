@@ -9,6 +9,12 @@
 
 AI-powered, hyper-local air quality intelligence for Amsterdam. EcoSentinel combines scheduled AQI collection, requested-location live fallback reads, EPA normalisation, predictive air-quality modeling, policy-ready reporting, and a resident-facing dashboard into one open-source hackathon project.
 
+## Live demo
+
+- Web app: [ecosentinel-steel.vercel.app](https://ecosentinel-steel.vercel.app/)
+- API: [ecosentinel-api-production.up.railway.app](https://ecosentinel-api-production.up.railway.app/)
+- Sample PDF report: [Policy report PDF](https://ecosentinel-api-production.up.railway.app/api/report?lat=52.3676&lng=4.9041&hours=24)
+
 ## One-line pitch
 
 EcoSentinel helps residents, planners, and NGOs understand what the air is like now, what it may look like next, and what practical action to take when pollution risk rises.
