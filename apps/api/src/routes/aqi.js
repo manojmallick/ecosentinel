@@ -34,9 +34,11 @@ async function getCurrentAqi(req, res) {
   const query = `
     SELECT lat, lng, aqi, category, pm25, pm10, no2, o3, source, recorded_at
     FROM aqi_readings
-    WHERE lat BETWEEN $1 - $3 AND $1 + $3
-      AND lng BETWEEN $2 - $3 AND $2 + $3
-    ORDER BY POWER(lat - $1, 2) + POWER(lng - $2, 2), recorded_at DESC
+    WHERE lat BETWEEN $1::double precision - $3::double precision
+      AND $1::double precision + $3::double precision
+      AND lng BETWEEN $2::double precision - $3::double precision
+      AND $2::double precision + $3::double precision
+    ORDER BY POWER(lat - $1::double precision, 2) + POWER(lng - $2::double precision, 2), recorded_at DESC
     LIMIT 1
   `;
 

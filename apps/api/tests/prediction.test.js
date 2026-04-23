@@ -132,6 +132,7 @@ describe("PredictionAgent", () => {
     });
 
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("FROM aqi_readings"), [52.3676, 4.9041, 24]);
+    expect(pool.query.mock.calls[0][0]).toContain("$1::double precision - 0.05");
     expect(forecast).toEqual({
       lat: 52.3676,
       lng: 4.9041,

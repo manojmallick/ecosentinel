@@ -155,8 +155,8 @@ async function fetchRecentReadings({
   const query = `
     SELECT recorded_at, aqi
     FROM aqi_readings
-    WHERE lat BETWEEN $1 - 0.05 AND $1 + 0.05
-      AND lng BETWEEN $2 - 0.05 AND $2 + 0.05
+    WHERE lat BETWEEN $1::double precision - 0.05 AND $1::double precision + 0.05
+      AND lng BETWEEN $2::double precision - 0.05 AND $2::double precision + 0.05
     ORDER BY recorded_at DESC
     LIMIT $3
   `;

@@ -69,6 +69,8 @@ describe("REST API route handlers", () => {
       4.9041,
       expect.any(Number)
     ]);
+    expect(pool.query.mock.calls[0][0]).toContain("$1::double precision - $3::double precision");
+    expect(pool.query.mock.calls[0][0]).toContain("POWER(lat - $1::double precision, 2)");
   });
 
   it("rejects invalid AQI query parameters", async () => {
@@ -135,6 +137,7 @@ describe("REST API route handlers", () => {
       4.9041,
       "24"
     ]);
+    expect(pool.query.mock.calls[0][0]).toContain("$1::double precision - 0.05");
   });
 
   it("rejects invalid history query parameters", async () => {

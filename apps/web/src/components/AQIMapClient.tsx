@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useMemo } from "react";
 import type { LatLngExpression } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 
@@ -11,13 +11,17 @@ type AQIMapClientProps = {
   readings: AqiReading[];
 };
 
-const MAP_CENTER: LatLngExpression = [52.3676, 4.9041];
-
 export default function AQIMapClient({ readings }: AQIMapClientProps) {
+  const mapCenter = useMemo<LatLngExpression>(() => {
+    const primaryReading = readings[0];
+    return [primaryReading?.lat ?? 52.3676, primaryReading?.lng ?? 4.9041];
+  }, [readings]);
+
   return (
     <MapContainer
-      center={MAP_CENTER}
+      center={mapCenter}
       className="h-[420px] w-full rounded-[2rem]"
+      key={Array.isArray(mapCenter) ? `${mapCenter[0]}-${mapCenter[1]}` : "fallback-center"}
       scrollWheelZoom={false}
       zoom={12}
       zoomControl={false}

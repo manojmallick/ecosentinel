@@ -48,8 +48,8 @@ export default function ForecastChart({ forecast, status }: ForecastChartProps) 
         </div>
       </div>
 
-      <div className="mt-6 h-[320px] w-full">
-        <ResponsiveContainer>
+      <div className="mt-6 h-[320px] min-h-[320px] min-w-0 w-full">
+        <ResponsiveContainer height="100%" minWidth={0} width="100%">
           <ComposedChart data={chartData} margin={{ top: 10, right: 6, left: -20, bottom: 0 }}>
             <XAxis
               axisLine={false}

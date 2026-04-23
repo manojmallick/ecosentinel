@@ -14,6 +14,7 @@ export type ChatMessage = {
 export type ChatReply = {
   contextAqi: number;
   contextCategory: string;
+  provider?: "fallback" | "gemini" | "openai" | "vertex";
   reply: string;
   source: "live" | "preview";
   strategy: "llm" | "fallback" | "preview";
@@ -158,6 +159,7 @@ export async function submitChatQuestion({
     return {
       contextAqi: payload.contextAqi,
       contextCategory: payload.contextCategory,
+      provider: payload.provider,
       reply: payload.reply,
       source: "live",
       strategy: payload.strategy ?? "llm",

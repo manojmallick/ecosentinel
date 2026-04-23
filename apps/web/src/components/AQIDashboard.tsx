@@ -20,8 +20,9 @@ const ForecastChart = dynamic(() => import("./ForecastChart"), {
 });
 
 export default function AQIDashboard() {
-  const { readings, status, lastUpdated } = useAqiReadings();
+  const { readings, status, lastUpdated, locationStatus } = useAqiReadings();
   const { forecast, status: forecastStatus } = useForecast(readings[0]);
+  const primaryReading = readings[0];
   const worstReading = readings.reduce((current, reading) => {
     return reading.aqi > current.aqi ? reading : current;
   }, readings[0]);
@@ -66,15 +67,22 @@ export default function AQIDashboard() {
                 <div className="mt-2 text-sm text-slate-300">
                   Last refresh {new Date(lastUpdated).toLocaleTimeString()}
                 </div>
+                <div className="mt-2 text-sm text-slate-300">
+                  {locationStatus === "granted"
+                    ? `Using browser location near ${primaryReading.pointName.toLowerCase()}`
+                    : locationStatus === "locating"
+                      ? "Requesting browser location"
+                      : "Using default fallback location"}
+                </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Worst hotspot</div>
+                  <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Highest nearby reading</div>
                   <div className="mt-3 text-xl font-semibold text-white">{worstReading.pointName}</div>
                   <div className="mt-1 text-sm text-slate-300">{worstReading.aqi} AQI</div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
-                  <div className="text-xs uppercase tracking-[0.25em] text-slate-400">City average</div>
+                  <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Nearby average</div>
                   <div className="mt-3 text-xl font-semibold text-white">{averageAqi} AQI</div>
                   <div className="mt-1 text-sm text-slate-300">{averageBand.label} overall</div>
                 </div>
@@ -90,7 +98,7 @@ export default function AQIDashboard() {
             <div className="mb-4 flex items-center justify-between px-3 pt-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Interactive map</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Amsterdam live AQI field</h2>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Live AQI field around you</h2>
               </div>
               <div className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
                 Leaflet view

@@ -32,12 +32,29 @@ type CollectionPoint = {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
 const POLL_INTERVAL_MS = 60_000;
+const DEFAULT_LAT = Number.parseFloat(process.env.NEXT_PUBLIC_MAP_LAT ?? "52.3676");
+const DEFAULT_LNG = Number.parseFloat(process.env.NEXT_PUBLIC_MAP_LNG ?? "4.9041");
+const GEOLOCATION_TIMEOUT_MS = 10_000;
+const GEOLOCATION_MAX_AGE_MS = 5 * 60_000;
+const DEFAULT_CENTER = {
+  lat: Number.isFinite(DEFAULT_LAT) ? DEFAULT_LAT : 52.3676,
+  lng: Number.isFinite(DEFAULT_LNG) ? DEFAULT_LNG : 4.9041
+};
 
-const COLLECTION_POINTS: CollectionPoint[] = [
-  { pointName: "Amsterdam Centre", lat: 52.3676, lng: 4.9041, fallbackAqi: 48 },
-  { pointName: "Amsterdam South", lat: 52.3402, lng: 4.8952, fallbackAqi: 56 },
-  { pointName: "Amsterdam North", lat: 52.3792, lng: 4.9007, fallbackAqi: 62 }
-];
+function createCollectionPoints(center: { lat: number; lng: number }): CollectionPoint[] {
+  const latOffset = 0.03;
+  const lngOffset = 0.04 / Math.max(Math.cos((center.lat * Math.PI) / 180), 0.35);
+
+  return [
+    { pointName: "Your location", lat: center.lat, lng: center.lng, fallbackAqi: 48 },
+    { pointName: "Nearby north", lat: center.lat + latOffset, lng: center.lng, fallbackAqi: 56 },
+    { pointName: "Nearby south-east", lat: center.lat - latOffset * 0.9, lng: center.lng + lngOffset, fallbackAqi: 62 }
+  ];
+}
+
+function buildFallbackReadings(points: CollectionPoint[]) {
+  return points.map(buildFallbackReading);
+}
 
 function buildFallbackReading(point: CollectionPoint): AqiReading {
   const band = getAqiBand(point.fallbackAqi);
@@ -93,7 +110,9 @@ async function fetchForecast(lat: number, lng: number): Promise<ForecastResponse
 }
 
 export function useAqiReadings() {
-  const [readings, setReadings] = useState<AqiReading[]>(COLLECTION_POINTS.map(buildFallbackReading));
+  const [collectionPoints, setCollectionPoints] = useState<CollectionPoint[]>(() => createCollectionPoints(DEFAULT_CENTER));
+  const [readings, setReadings] = useState<AqiReading[]>(() => buildFallbackReadings(createCollectionPoints(DEFAULT_CENTER)));
+  const [locationStatus, setLocationStatus] = useState<"fallback" | "granted" | "locating">("locating");
   const [status, setStatus] = useState<"idle" | "live" | "fallback">("idle");
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString());
   const isMounted = useRef(true);
@@ -105,9 +124,44 @@ export function useAqiReadings() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setLocationStatus("fallback");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (!isMounted.current) {
+          return;
+        }
+
+        setCollectionPoints(
+          createCollectionPoints({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          })
+        );
+        setLocationStatus("granted");
+      },
+      () => {
+        if (!isMounted.current) {
+          return;
+        }
+
+        setLocationStatus("fallback");
+      },
+      {
+        enableHighAccuracy: false,
+        maximumAge: GEOLOCATION_MAX_AGE_MS,
+        timeout: GEOLOCATION_TIMEOUT_MS
+      }
+    );
+  }, []);
+
+  useEffect(() => {
     async function refreshReadings() {
       try {
-        const liveReadings = await Promise.all(COLLECTION_POINTS.map(fetchReading));
+        const liveReadings = await Promise.all(collectionPoints.map(fetchReading));
 
         if (!isMounted.current) {
           return;
@@ -121,7 +175,7 @@ export function useAqiReadings() {
           return;
         }
 
-        setReadings(COLLECTION_POINTS.map(buildFallbackReading));
+        setReadings(buildFallbackReadings(collectionPoints));
         setStatus("fallback");
         setLastUpdated(new Date().toISOString());
       }
@@ -135,10 +189,11 @@ export function useAqiReadings() {
     return () => {
       window.clearInterval(interval);
     };
-  }, []);
+  }, [collectionPoints]);
 
   return {
     lastUpdated,
+    locationStatus,
     readings,
     status
   };

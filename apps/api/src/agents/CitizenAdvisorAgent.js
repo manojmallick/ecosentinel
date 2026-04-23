@@ -1,8 +1,11 @@
 const pool = require("../db/pool");
+const { callGeminiStudio, hasGeminiStudioConfig } = require("../services/GeminiStudioClient");
+const { callVertexGemini, hasVertexGeminiConfig } = require("../services/VertexGeminiClient");
 
 const { generateForecast } = require("./PredictionAgent");
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const DEFAULT_LLM_PROVIDER = process.env.LLM_PROVIDER || "auto";
 
 function parseCoordinate(value, fallback) {
   const parsed = Number.parseFloat(value ?? fallback);
@@ -17,9 +20,9 @@ async function fetchCurrentReading({
   const query = `
     SELECT lat, lng, aqi, category, pm25, pm10, no2, o3, source, recorded_at
     FROM aqi_readings
-    WHERE lat BETWEEN $1 - 0.05 AND $1 + 0.05
-      AND lng BETWEEN $2 - 0.05 AND $2 + 0.05
-    ORDER BY POWER(lat - $1, 2) + POWER(lng - $2, 2), recorded_at DESC
+    WHERE lat BETWEEN $1::double precision - 0.05 AND $1::double precision + 0.05
+      AND lng BETWEEN $2::double precision - 0.05 AND $2::double precision + 0.05
+    ORDER BY POWER(lat - $1::double precision, 2) + POWER(lng - $2::double precision, 2), recorded_at DESC
     LIMIT 1
   `;
 
@@ -97,6 +100,12 @@ function buildSystemPrompt() {
   return [
     "You are EcoSentinel's citizen air-quality advisor for Amsterdam.",
     "Answer in plain language, stay concise, and prioritize safety guidance.",
+    "Respond with exactly 4 short bullet points and no greeting or sign-off.",
+    "Bullet 1: current AQI and category.",
+    "Bullet 2: near-term forecast risk.",
+    "Bullet 3: practical recommendation for the user's plan.",
+    "Bullet 4: caution for sensitive groups if relevant, otherwise say no special caution is needed.",
+    "Keep the total response under 90 words and make each bullet a complete thought.",
     "Use the provided AQI context only. Do not invent medical facts or unsupported claims.",
     "Mention current AQI, near-term forecast risk, and one practical recommendation.",
     "If AQI is elevated, include a caution for sensitive groups such as children, elderly residents, or people with asthma."
@@ -186,14 +195,49 @@ async function callOpenAIResponses({
   return fallbackText;
 }
 
+function chooseLlmProvider({
+  env = process.env,
+  llmProvider = DEFAULT_LLM_PROVIDER,
+  openAiApiKey = env.OPENAI_API_KEY
+} = {}) {
+  if (llmProvider === "gemini") {
+    return hasGeminiStudioConfig(env) ? "gemini" : null;
+  }
+
+  if (llmProvider === "vertex") {
+    return hasVertexGeminiConfig(env) ? "vertex" : null;
+  }
+
+  if (llmProvider === "openai") {
+    return openAiApiKey ? "openai" : null;
+  }
+
+  if (hasGeminiStudioConfig(env)) {
+    return "gemini";
+  }
+
+  if (hasVertexGeminiConfig(env)) {
+    return "vertex";
+  }
+
+  if (openAiApiKey) {
+    return "openai";
+  }
+
+  return null;
+}
+
 async function answerCitizenQuestion({
   message,
   lat = 52.3676,
   lng = 4.9041,
   db = pool,
   forecastAgent = generateForecast,
-  llmClient = callOpenAIResponses,
+  geminiClient = callGeminiStudio,
+  llmClient,
+  llmProvider = DEFAULT_LLM_PROVIDER,
   openAiApiKey = process.env.OPENAI_API_KEY,
+  vertexClient = callVertexGemini,
   model = DEFAULT_MODEL
 }) {
   const latCoord = parseCoordinate(lat, 52.3676);
@@ -232,8 +276,14 @@ async function answerCitizenQuestion({
     message: message.trim()
   });
 
-  if (!openAiApiKey) {
+  const configuredProvider = chooseLlmProvider({
+    llmProvider,
+    openAiApiKey
+  });
+
+  if (!llmClient && !configuredProvider) {
     return {
+      provider: "fallback",
       reply: fallbackReply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
@@ -243,14 +293,28 @@ async function answerCitizenQuestion({
   }
 
   try {
-    const reply = await llmClient({
-      apiKey: openAiApiKey,
-      model,
-      systemPrompt: buildSystemPrompt(context),
-      userPrompt: buildUserPrompt(context)
-    });
+    const systemPrompt = buildSystemPrompt(context);
+    const userPrompt = buildUserPrompt(context);
+    const reply =
+      configuredProvider === "gemini" && !llmClient
+        ? await geminiClient({
+            systemPrompt,
+            userPrompt
+          })
+        : configuredProvider === "vertex" && !llmClient
+        ? await vertexClient({
+            systemPrompt,
+            userPrompt
+          })
+        : await (llmClient || callOpenAIResponses)({
+            apiKey: openAiApiKey,
+            model,
+            systemPrompt,
+            userPrompt
+          });
 
     return {
+      provider: configuredProvider,
       reply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
@@ -259,6 +323,7 @@ async function answerCitizenQuestion({
     };
   } catch (_error) {
     return {
+      provider: "fallback",
       reply: fallbackReply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
@@ -275,6 +340,7 @@ module.exports = {
   buildSystemPrompt,
   buildUserPrompt,
   callOpenAIResponses,
+  chooseLlmProvider,
   fetchCurrentReading,
   parseCoordinate,
   summariseForecast

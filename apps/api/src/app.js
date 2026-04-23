@@ -2,8 +2,10 @@ const cors = require("cors");
 const express = require("express");
 
 const { router: aqiRouter } = require("./routes/aqi");
+const { router: chatRouter } = require("./routes/chat");
 const { router: healthRouter } = require("./routes/health");
 const { router: historyRouter } = require("./routes/history");
+const { router: predictRouter } = require("./routes/predict");
 const { router: reportRouter } = require("./routes/report");
 
 const app = express();
@@ -19,8 +21,10 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/aqi", aqiRouter);
+app.use("/api/chat", chatRouter);
 app.use("/api/history", historyRouter);
 app.use("/api/health", healthRouter);
+app.use("/api/predict", predictRouter);
 app.use("/api/report", reportRouter);
 
 app.use((error, _req, res, next) => {

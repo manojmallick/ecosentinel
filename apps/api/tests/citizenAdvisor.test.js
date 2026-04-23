@@ -7,6 +7,7 @@ const {
   answerCitizenQuestion,
   buildAdvisorContext,
   buildFallbackAdvice,
+  chooseLlmProvider,
   fetchCurrentReading,
   summariseForecast
 } = require("../src/agents/CitizenAdvisorAgent");
@@ -164,6 +165,7 @@ describe("CitizenAdvisorAgent", () => {
       signOutput: false
     });
     expect(response).toEqual({
+      provider: "fallback",
       reply: expect.stringContaining("current AQI is 82 (Moderate)"),
       contextAqi: 82,
       contextCategory: "Moderate",
@@ -205,16 +207,168 @@ describe("CitizenAdvisorAgent", () => {
     expect(llmClient).toHaveBeenCalledWith({
       apiKey: "test-key",
       model: "gpt-4o-mini",
-      systemPrompt: expect.stringContaining("citizen air-quality advisor"),
+      systemPrompt: expect.stringContaining("exactly 4 short bullet points"),
       userPrompt: expect.stringContaining("\"userQuestion\": \"Should I go for a run?\"")
     });
     expect(response).toEqual({
+      provider: "openai",
       reply: "Current AQI is good, and cycling looks reasonable this morning.",
       contextAqi: 48,
       contextCategory: "Good",
       timestamp: expect.any(String),
       strategy: "llm"
     });
+  });
+
+  it("uses the Vertex Gemini client when configured as the LLM provider", async () => {
+    const originalProject = process.env.GOOGLE_CLOUD_PROJECT;
+    const originalServiceAccount = process.env.GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON;
+    const restoreEnv = () => {
+      if (originalProject === undefined) {
+        delete process.env.GOOGLE_CLOUD_PROJECT;
+      } else {
+        process.env.GOOGLE_CLOUD_PROJECT = originalProject;
+      }
+
+      if (originalServiceAccount === undefined) {
+        delete process.env.GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON;
+      } else {
+        process.env.GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON = originalServiceAccount;
+      }
+    };
+
+    process.env.GOOGLE_CLOUD_PROJECT = "ecosentinel-demo";
+    process.env.GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON = JSON.stringify({
+      client_email: "ecosentinel@example.iam.gserviceaccount.com",
+      private_key: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----\n"
+    });
+
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          lat: 52.3676,
+          lng: 4.9041,
+          aqi: 48,
+          category: "Good",
+          pm25: 10.2,
+          pm10: 18.5,
+          no2: 22.1,
+          o3: 55.3,
+          source: "openaq",
+          recorded_at: "2026-04-22T09:00:00Z"
+        }
+      ]
+    });
+
+    const vertexClient = jest.fn(async () => "Gemini says current AQI is good for a short cycle.");
+
+    try {
+      const response = await answerCitizenQuestion({
+        message: "Can I cycle?",
+        lat: 52.3676,
+        lng: 4.9041,
+        forecastAgent: async () => buildForecast(),
+        llmProvider: "vertex",
+        vertexClient
+      });
+
+      expect(vertexClient).toHaveBeenCalledWith({
+        systemPrompt: expect.stringContaining("exactly 4 short bullet points"),
+        userPrompt: expect.stringContaining("\"userQuestion\": \"Can I cycle?\"")
+      });
+      expect(response).toEqual({
+        provider: "vertex",
+        reply: "Gemini says current AQI is good for a short cycle.",
+        contextAqi: 48,
+        contextCategory: "Good",
+        timestamp: expect.any(String),
+        strategy: "llm"
+      });
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("uses the Gemini Studio client when configured with an AI Studio API key", async () => {
+    const originalGeminiApiKey = process.env.GEMINI_API_KEY;
+    const restoreEnv = () => {
+      if (originalGeminiApiKey === undefined) {
+        delete process.env.GEMINI_API_KEY;
+      } else {
+        process.env.GEMINI_API_KEY = originalGeminiApiKey;
+      }
+    };
+
+    process.env.GEMINI_API_KEY = "gemini-test-key";
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          lat: 52.3676,
+          lng: 4.9041,
+          aqi: 48,
+          category: "Good",
+          pm25: 10.2,
+          pm10: 18.5,
+          no2: 22.1,
+          o3: 55.3,
+          source: "openaq",
+          recorded_at: "2026-04-22T09:00:00Z"
+        }
+      ]
+    });
+
+    const geminiClient = jest.fn(async () => "Gemini Studio says conditions look good for cycling.");
+
+    try {
+      const response = await answerCitizenQuestion({
+        message: "Can I cycle?",
+        lat: 52.3676,
+        lng: 4.9041,
+        forecastAgent: async () => buildForecast(),
+        geminiClient,
+        llmProvider: "gemini"
+      });
+
+      expect(geminiClient).toHaveBeenCalledWith({
+        systemPrompt: expect.stringContaining("exactly 4 short bullet points"),
+        userPrompt: expect.stringContaining("\"userQuestion\": \"Can I cycle?\"")
+      });
+      expect(response).toEqual({
+        provider: "gemini",
+        reply: "Gemini Studio says conditions look good for cycling.",
+        contextAqi: 48,
+        contextCategory: "Good",
+        timestamp: expect.any(String),
+        strategy: "llm"
+      });
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it("prefers Vertex Gemini over OpenAI in auto mode when Vertex env is configured", () => {
+    expect(
+      chooseLlmProvider({
+        env: {
+          GOOGLE_CLOUD_PROJECT: "ecosentinel-demo",
+          GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON: "{}"
+        },
+        openAiApiKey: "openai-key"
+      })
+    ).toBe("vertex");
+  });
+
+  it("prefers Gemini Studio over Vertex and OpenAI in auto mode when a Gemini API key exists", () => {
+    expect(
+      chooseLlmProvider({
+        env: {
+          GEMINI_API_KEY: "gemini-key",
+          GOOGLE_CLOUD_PROJECT: "ecosentinel-demo",
+          GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON: "{}"
+        },
+        openAiApiKey: "openai-key"
+      })
+    ).toBe("gemini");
   });
 
   it("falls back when the LLM client fails", async () => {
@@ -247,6 +401,7 @@ describe("CitizenAdvisorAgent", () => {
     });
 
     expect(response.strategy).toBe("fallback");
+    expect(response.provider).toBe("fallback");
     expect(response.reply).toContain("Children, older adults, and people with asthma");
     expect(response.contextAqi).toBe(108);
   });

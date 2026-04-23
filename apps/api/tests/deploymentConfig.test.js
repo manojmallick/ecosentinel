@@ -34,7 +34,12 @@ describe("deployment configuration", () => {
 
     expect(envExample).toContain("DATABASE_URL=");
     expect(envExample).toContain("IQAIR_API_KEY=");
+    expect(envExample).toContain("LLM_PROVIDER=gemini");
+    expect(envExample).toContain("GEMINI_API_KEY=");
+    expect(envExample).toContain("GEMINI_MODEL=");
     expect(envExample).toContain("OPENAI_API_KEY=");
+    expect(envExample).toContain("GOOGLE_CLOUD_PROJECT=");
+    expect(envExample).toContain("GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=");
     expect(envExample).toContain("SIGNING_PRIVATE_KEY=");
     expect(envExample).toContain("TFJS_MODEL_PATH=");
   });

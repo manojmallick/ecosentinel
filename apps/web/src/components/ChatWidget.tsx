@@ -21,7 +21,7 @@ function formatMessageTime(timestamp: string) {
 }
 
 export default function ChatWidget() {
-  const { lastUpdated, readings, status } = useAqiReadings();
+  const { lastUpdated, locationStatus, readings, status } = useAqiReadings();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>(() => [createWelcomeMessage()]);
   const [responseMode, setResponseMode] = useState<"idle" | "live" | "preview">("idle");
@@ -101,11 +101,17 @@ export default function ChatWidget() {
             <span className="text-base font-medium text-slate-100">{primaryReading.category}</span>
           </div>
           <p className="mt-4 text-sm leading-7 text-slate-300">
-            The chatbot uses the current Amsterdam Centre reading first, then falls back to a local preview
-            response if the backend route is still unavailable.
+            The chatbot uses the current AQI reading for {primaryReading.pointName.toLowerCase()} first,
+            then falls back to a local preview response if the backend route is unavailable or
+            location-specific AQI data cannot be fetched.
           </p>
           <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-400">
-            AQI refresh {new Date(lastUpdated).toLocaleTimeString()}
+            AQI refresh {new Date(lastUpdated).toLocaleTimeString()} ·{" "}
+            {locationStatus === "granted"
+              ? "browser location enabled"
+              : locationStatus === "locating"
+                ? "locating device"
+                : "fallback location"}
           </p>
         </div>
 
