@@ -11,6 +11,7 @@ jest.mock("../src/services/iqair", () => ({
 const pool = require("../src/db/pool");
 const { getNearestCity } = require("../src/services/iqair");
 const { getLatestReadings } = require("../src/services/openaq");
+const { resetLiveResolutionCache } = require("../src/services/LocationResolution");
 const {
   answerCitizenQuestion,
   buildAdvisorContext,
@@ -37,6 +38,7 @@ function buildForecast() {
 describe("CitizenAdvisorAgent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetLiveResolutionCache();
     jest.useFakeTimers().setSystemTime(new Date("2026-04-22T09:30:00Z"));
     getLatestReadings.mockResolvedValue([]);
     getNearestCity.mockResolvedValue(null);

@@ -11,6 +11,7 @@ jest.mock("../src/services/iqair", () => ({
 const pool = require("../src/db/pool");
 const { getNearestCity } = require("../src/services/iqair");
 const { getLatestReadings } = require("../src/services/openaq");
+const { resetLiveResolutionCache } = require("../src/services/LocationResolution");
 const { getCurrentAqi } = require("../src/routes/aqi");
 const { getHistory } = require("../src/routes/history");
 
@@ -24,6 +25,7 @@ function createResponse() {
 describe("REST API route handlers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetLiveResolutionCache();
     getLatestReadings.mockResolvedValue([]);
     getNearestCity.mockResolvedValue(null);
   });
@@ -224,6 +226,62 @@ describe("REST API route handlers", () => {
     });
     expect(pool.query).toHaveBeenCalledTimes(2);
     expect(pool.query.mock.calls[1][0]).toContain("ORDER BY POWER(lat - $1::double precision, 2)");
+  });
+
+  it("caches provider failures for a while instead of retrying every request", async () => {
+    const recordedAt = new Date().toISOString();
+
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            lat: 52.3676,
+            lng: 4.9041,
+            aqi: 52,
+            category: "Moderate",
+            pm25: 11.2,
+            pm10: 19.5,
+            no2: 23.1,
+            o3: 56.3,
+            source: "openaq",
+            recorded_at: recordedAt
+          }
+        ]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            lat: 52.3676,
+            lng: 4.9041,
+            aqi: 52,
+            category: "Moderate",
+            pm25: 11.2,
+            pm10: 19.5,
+            no2: 23.1,
+            o3: 56.3,
+            source: "openaq",
+            recorded_at: recordedAt
+          }
+        ]
+      });
+
+    const response = createResponse();
+    const request = {
+      query: {
+        lat: 52.34368048931782,
+        lng: 4.8106501535156125,
+        radius_km: 5
+      }
+    };
+
+    await getCurrentAqi(request, response);
+    await getCurrentAqi(request, response);
+
+    expect(getLatestReadings).toHaveBeenCalledTimes(1);
+    expect(getNearestCity).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledTimes(4);
   });
 
   it("rejects invalid AQI query parameters", async () => {

@@ -30,6 +30,8 @@ Configure these environment variables on the Railway service:
 - `DATABASE_URL=<railway-postgres-connection-string>`
 - `ENABLE_COLLECTOR=true`
 - `AQI_MAX_READING_AGE_MINUTES=90`
+- `AQI_LIVE_CACHE_MINUTES=60`
+- `AQI_PROVIDER_FAILURE_COOLDOWN_MINUTES=60`
 - `OPENAQ_API_KEY=` (optional)
 - `IQAIR_API_KEY=<required for live secondary AQI source>`
 - `LLM_PROVIDER=gemini`

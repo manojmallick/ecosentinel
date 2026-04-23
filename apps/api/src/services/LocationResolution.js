@@ -4,10 +4,32 @@ const { getNearestCity } = require("./iqair");
 const { getLatestReadings } = require("./openaq");
 
 const DEFAULT_READING_MAX_AGE_MINUTES = 90;
+const DEFAULT_LIVE_CACHE_MINUTES = 60;
+const DEFAULT_PROVIDER_FAILURE_COOLDOWN_MINUTES = 60;
+const DEFAULT_LOCATION_CACHE_PRECISION = 2;
+const liveResolutionCache = new Map();
 
 function getFreshnessConfigMinutes() {
   const configured = Number.parseInt(process.env.AQI_MAX_READING_AGE_MINUTES || DEFAULT_READING_MAX_AGE_MINUTES, 10);
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_READING_MAX_AGE_MINUTES;
+}
+
+function getLiveCacheMinutes() {
+  const configured = Number.parseInt(process.env.AQI_LIVE_CACHE_MINUTES || DEFAULT_LIVE_CACHE_MINUTES, 10);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_LIVE_CACHE_MINUTES;
+}
+
+function getProviderFailureCooldownMinutes() {
+  const configured = Number.parseInt(
+    process.env.AQI_PROVIDER_FAILURE_COOLDOWN_MINUTES || DEFAULT_PROVIDER_FAILURE_COOLDOWN_MINUTES,
+    10
+  );
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_PROVIDER_FAILURE_COOLDOWN_MINUTES;
+}
+
+function getLocationCachePrecision() {
+  const configured = Number.parseInt(process.env.AQI_LOCATION_CACHE_PRECISION || DEFAULT_LOCATION_CACHE_PRECISION, 10);
+  return Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_LOCATION_CACHE_PRECISION;
 }
 
 function getAgeMs(timestamp, now = new Date()) {
@@ -70,6 +92,48 @@ function getOpenAqTimestamp(location) {
 
 function estimateSquaredDistance(lat, lng, candidateLat, candidateLng) {
   return (Number(candidateLat) - lat) ** 2 + (Number(candidateLng) - lng) ** 2;
+}
+
+function getLocationCacheKey(lat, lng, precision = getLocationCachePrecision()) {
+  return `${Number(lat).toFixed(precision)}:${Number(lng).toFixed(precision)}`;
+}
+
+function readLiveCacheEntry(lat, lng) {
+  return liveResolutionCache.get(getLocationCacheKey(lat, lng));
+}
+
+function getCachedLiveReading(lat, lng, { now = new Date() } = {}) {
+  const entry = readLiveCacheEntry(lat, lng);
+  if (!entry?.reading || !entry.expiresAt || entry.expiresAt <= now.getTime()) {
+    return null;
+  }
+
+  return entry.reading;
+}
+
+function isProviderCooldownActive(lat, lng, { now = new Date() } = {}) {
+  const entry = readLiveCacheEntry(lat, lng);
+  return Boolean(entry?.cooldownUntil && entry.cooldownUntil > now.getTime());
+}
+
+function cacheLiveReading(lat, lng, reading, { now = new Date(), cacheMinutes = getLiveCacheMinutes() } = {}) {
+  liveResolutionCache.set(getLocationCacheKey(lat, lng), {
+    reading,
+    expiresAt: now.getTime() + cacheMinutes * 60_000
+  });
+}
+
+function cacheProviderFailure(lat, lng, { now = new Date(), cooldownMinutes = getProviderFailureCooldownMinutes() } = {}) {
+  const existing = readLiveCacheEntry(lat, lng);
+
+  liveResolutionCache.set(getLocationCacheKey(lat, lng), {
+    ...existing,
+    cooldownUntil: now.getTime() + cooldownMinutes * 60_000
+  });
+}
+
+function resetLiveResolutionCache() {
+  liveResolutionCache.clear();
 }
 
 function buildOpenAqReading(lat, lng, location) {
@@ -226,8 +290,17 @@ async function resolveCurrentReading({
     : "stale";
 
   const shouldTryLive = !stored.reading || stored.resolution !== "local" || storedFreshness === "stale";
+  const cachedLiveReading = getCachedLiveReading(lat, lng, { now });
 
-  if (shouldTryLive) {
+  if (cachedLiveReading) {
+    return {
+      reading: cachedLiveReading,
+      resolution: "requested_location",
+      freshness: "live_provider"
+    };
+  }
+
+  if (shouldTryLive && !isProviderCooldownActive(lat, lng, { now })) {
     const liveReading = await liveFetcher({
       lat,
       lng
@@ -235,6 +308,7 @@ async function resolveCurrentReading({
 
     if (liveReading) {
       await persistReading(liveReading, { db });
+      cacheLiveReading(lat, lng, liveReading, { now });
 
       return {
         reading: liveReading,
@@ -242,6 +316,8 @@ async function resolveCurrentReading({
         freshness: "live_provider"
       };
     }
+
+    cacheProviderFailure(lat, lng, { now });
   }
 
   return {
@@ -272,6 +348,10 @@ module.exports = {
   fetchRequestedLocationLiveReading,
   findNearestCurrentReading,
   findNearestHistoryAnchor,
+  getCachedLiveReading,
+  getLocationCacheKey,
+  isProviderCooldownActive,
   persistReading,
+  resetLiveResolutionCache,
   resolveCurrentReading
 };
