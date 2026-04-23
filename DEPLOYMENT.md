@@ -32,8 +32,7 @@ Configure these environment variables on the Railway service:
 - `AQI_MAX_READING_AGE_MINUTES=90`
 - `AQI_LIVE_CACHE_MINUTES=60`
 - `AQI_PROVIDER_FAILURE_COOLDOWN_MINUTES=60`
-- `OPENAQ_API_KEY=` (optional)
-- `IQAIR_API_KEY=<required for live secondary AQI source>`
+- `OPENAQ_API_KEY=` (optional, used for secondary station validation)
 - `LLM_PROVIDER=gemini`
 - `GEMINI_API_KEY=<required for Gemini AI Studio chat>`
 - `GEMINI_MODEL=gemini-2.5-flash`
@@ -49,7 +48,8 @@ Configure these environment variables on the Railway service:
 - The API health check path is `/api/health`.
 - The health payload now reports whether the collector is enabled.
 - The frontend should always point at the Railway public API URL through `NEXT_PUBLIC_API_URL`.
-- `/api/aqi` first uses stored local data, then falls back to a live provider read for the requested location when stored data is stale or missing.
+- `/api/aqi` first uses stored local data, then falls back to a live Open-Meteo read for the requested location when stored data is stale or missing.
+- OpenAQ is used as a secondary station-validation source rather than the default live provider.
 - `/api/predict` returns `historyResolution` so the frontend can show when the forecast used nearest-available history instead of a local history window.
 - `/api/chat` uses the AQI route plus the forecast route, so setting the AQI and Gemini variables is enough to make the chatbot judge-ready.
 - If the TFJS model artifact is not present in the deployment image, the prediction service will fall back to the deterministic forecast path instead of crashing.

@@ -33,7 +33,7 @@ describe("deployment configuration", () => {
     const envExample = fs.readFileSync(envExamplePath, "utf8");
 
     expect(envExample).toContain("DATABASE_URL=");
-    expect(envExample).toContain("IQAIR_API_KEY=");
+    expect(envExample).toContain("OPENAQ_API_KEY=");
     expect(envExample).toContain("LLM_PROVIDER=gemini");
     expect(envExample).toContain("GEMINI_API_KEY=");
     expect(envExample).toContain("GEMINI_MODEL=");

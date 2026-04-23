@@ -6,8 +6,8 @@ jest.mock("../src/services/openaq", () => ({
   getLatestReadings: jest.fn()
 }));
 
-jest.mock("../src/services/iqair", () => ({
-  getNearestCity: jest.fn()
+jest.mock("../src/services/openMeteo", () => ({
+  getCurrentAirQuality: jest.fn()
 }));
 
 jest.mock("../src/services/AQINormaliser", () => ({
@@ -21,8 +21,8 @@ jest.mock("../src/services/AQINormaliser", () => ({
 
 const pool = require("../src/db/pool");
 const AQINormaliser = require("../src/services/AQINormaliser");
+const { getCurrentAirQuality } = require("../src/services/openMeteo");
 const { getLatestReadings } = require("../src/services/openaq");
-const { getNearestCity } = require("../src/services/iqair");
 const {
   buildInsertStatement,
   collect,
@@ -33,8 +33,8 @@ const {
 describe("DataCollectorAgent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getCurrentAirQuality.mockResolvedValue(null);
     getLatestReadings.mockResolvedValue([]);
-    getNearestCity.mockResolvedValue(null);
   });
 
   it("extracts supported pollutant values from OpenAQ sensors", () => {
@@ -54,7 +54,24 @@ describe("DataCollectorAgent", () => {
     });
   });
 
-  it("prefers OpenAQ pollutant detail and only falls back to IQAir when OpenAQ has no usable reading", async () => {
+  it("collects Open-Meteo as the default source and OpenAQ as secondary validation data", async () => {
+    getCurrentAirQuality
+      .mockResolvedValueOnce({
+        lat: 52.3676,
+        lng: 4.9041,
+        pollutants: {
+          pm25: 9.4,
+          pm10: 15.6,
+          no2: 21.1,
+          o3: 48.3,
+          co: 180,
+          so2: 2.1
+        },
+        recorded_at: "2026-04-23T12:00:00.000Z"
+      })
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
     getLatestReadings
       .mockResolvedValueOnce([
         {
@@ -71,25 +88,34 @@ describe("DataCollectorAgent", () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
 
-    getNearestCity
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-
     const insertedCount = await collect();
 
-    expect(insertedCount).toBe(1);
+    expect(insertedCount).toBe(2);
+    expect(AQINormaliser.calculateFromPollutants).toHaveBeenCalledWith({
+      pm25: 9.4,
+      pm10: 15.6,
+      no2: 21.1,
+      o3: 48.3
+    });
     expect(AQINormaliser.calculateFromPollutants).toHaveBeenCalledWith({
       pm25: 10.5,
       pm10: 18.1
     });
-    expect(AQINormaliser.aqiToCategory).not.toHaveBeenCalled();
+    expect(getCurrentAirQuality).toHaveBeenCalledTimes(3);
     expect(pool.query).toHaveBeenCalledTimes(1);
-    expect(getNearestCity).toHaveBeenCalledTimes(2);
 
     const [query, values] = pool.query.mock.calls[0];
     expect(query).toContain("INSERT INTO aqi_readings");
     expect(values).toEqual([
+      52.3676,
+      4.9041,
+      48,
+      "Good",
+      9.4,
+      15.6,
+      21.1,
+      48.3,
+      "open-meteo",
       52.36,
       4.91,
       48,

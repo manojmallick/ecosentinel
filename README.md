@@ -78,7 +78,7 @@ The strongest judge demo sequence is:
 ## Architecture
 
 ```text
-OpenAQ / IQAir
+Open-Meteo / OpenAQ
       |
       v
 DataCollectorAgent ---> AQINormaliser ---> PostgreSQL / Timescale-style schema
@@ -86,7 +86,7 @@ DataCollectorAgent ---> AQINormaliser ---> PostgreSQL / Timescale-style schema
       |                                         +--> /api/aqi
       |                                         +--> /api/history
       |
-      +--> requested-location live AQI fallback (OpenAQ / IQAir)
+      +--> requested-location live AQI fallback (Open-Meteo / OpenAQ)
       |
       +--> PredictionAgent ---> signed forecast payloads / deterministic fallback
       |
@@ -106,7 +106,7 @@ Next.js frontend
 
 - Frontend: Next.js 14, React 18, Tailwind CSS, Leaflet, Recharts
 - Backend: Express 4, Node.js 20, PostgreSQL, PDFKit
-- Data and intelligence: OpenAQ, IQAir, EPA AQI normalisation, TFJS-compatible forecast agent, Gemini citizen advisor agent
+- Data and intelligence: Open-Meteo, OpenAQ, EPA AQI normalisation, TFJS-compatible forecast agent, Gemini citizen advisor agent
 - Deployment target: Vercel for `apps/web`, Railway for `apps/api`
 
 ## Quick start
@@ -146,7 +146,6 @@ At minimum for local development:
 
 Optional but recommended:
 
-- `IQAIR_API_KEY`
 - `LLM_PROVIDER=gemini`
 - `GEMINI_API_KEY`
 - `SIGNING_PRIVATE_KEY`

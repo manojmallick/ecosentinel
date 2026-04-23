@@ -4,12 +4,12 @@ jest.mock("../src/db/pool", () => ({
 jest.mock("../src/services/openaq", () => ({
   getLatestReadings: jest.fn()
 }));
-jest.mock("../src/services/iqair", () => ({
-  getNearestCity: jest.fn()
+jest.mock("../src/services/openMeteo", () => ({
+  getCurrentAirQuality: jest.fn()
 }));
 
 const pool = require("../src/db/pool");
-const { getNearestCity } = require("../src/services/iqair");
+const { getCurrentAirQuality } = require("../src/services/openMeteo");
 const { getLatestReadings } = require("../src/services/openaq");
 const { resetLiveResolutionCache } = require("../src/services/LocationResolution");
 const { getCurrentAqi } = require("../src/routes/aqi");
@@ -26,8 +26,8 @@ describe("REST API route handlers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetLiveResolutionCache();
+    getCurrentAirQuality.mockResolvedValue(null);
     getLatestReadings.mockResolvedValue([]);
-    getNearestCity.mockResolvedValue(null);
   });
 
   it("returns the nearest current AQI reading", async () => {
@@ -103,38 +103,19 @@ describe("REST API route handlers", () => {
         rows: []
       });
 
-    getLatestReadings.mockResolvedValueOnce([
-      {
-        coordinates: {
-          latitude: 52.3437,
-          longitude: 4.8107
-        },
-        sensors: [
-          {
-            parameter: {
-              name: "pm25"
-            },
-            latest: {
-              value: 13.2,
-              datetime: {
-                utc: recordedAt
-              }
-            }
-          },
-          {
-            parameter: {
-              name: "o3"
-            },
-            latest: {
-              value: 50.1,
-              datetime: {
-                utc: recordedAt
-              }
-            }
-          }
-        ]
-      }
-    ]);
+    getCurrentAirQuality.mockResolvedValueOnce({
+      lat: 52.3437,
+      lng: 4.8107,
+      pollutants: {
+        pm25: 13.2,
+        pm10: null,
+        no2: null,
+        o3: 50.1,
+        co: 220,
+        so2: 3
+      },
+      recorded_at: recordedAt
+    });
 
     const response = createResponse();
 
@@ -163,10 +144,11 @@ describe("REST API route handlers", () => {
       },
       freshness: "live_provider",
       resolution: "requested_location",
-      source: "openaq",
+      source: "open-meteo",
       timestamp: recordedAt
     });
-    expect(getLatestReadings).toHaveBeenCalledWith(52.34368048931782, 4.8106501535156125, 10);
+    expect(getCurrentAirQuality).toHaveBeenCalledWith(52.34368048931782, 4.8106501535156125);
+    expect(getLatestReadings).not.toHaveBeenCalled();
     expect(pool.query.mock.calls[2][0]).toContain("INSERT INTO aqi_readings");
   });
 
@@ -279,8 +261,8 @@ describe("REST API route handlers", () => {
     await getCurrentAqi(request, response);
     await getCurrentAqi(request, response);
 
+    expect(getCurrentAirQuality).toHaveBeenCalledTimes(1);
     expect(getLatestReadings).toHaveBeenCalledTimes(1);
-    expect(getNearestCity).toHaveBeenCalledTimes(1);
     expect(pool.query).toHaveBeenCalledTimes(4);
   });
 

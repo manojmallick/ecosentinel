@@ -4,12 +4,12 @@ jest.mock("../src/db/pool", () => ({
 jest.mock("../src/services/openaq", () => ({
   getLatestReadings: jest.fn()
 }));
-jest.mock("../src/services/iqair", () => ({
-  getNearestCity: jest.fn()
+jest.mock("../src/services/openMeteo", () => ({
+  getCurrentAirQuality: jest.fn()
 }));
 
 const pool = require("../src/db/pool");
-const { getNearestCity } = require("../src/services/iqair");
+const { getCurrentAirQuality } = require("../src/services/openMeteo");
 const { getLatestReadings } = require("../src/services/openaq");
 const { resetLiveResolutionCache } = require("../src/services/LocationResolution");
 const {
@@ -40,8 +40,8 @@ describe("CitizenAdvisorAgent", () => {
     jest.clearAllMocks();
     resetLiveResolutionCache();
     jest.useFakeTimers().setSystemTime(new Date("2026-04-22T09:30:00Z"));
+    getCurrentAirQuality.mockResolvedValue(null);
     getLatestReadings.mockResolvedValue([]);
-    getNearestCity.mockResolvedValue(null);
   });
 
   afterEach(() => {

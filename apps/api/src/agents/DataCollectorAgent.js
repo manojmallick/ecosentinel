@@ -1,7 +1,7 @@
 const pool = require("../db/pool");
 const AQINormaliser = require("../services/AQINormaliser");
+const { getCurrentAirQuality } = require("../services/openMeteo");
 const { getLatestReadings } = require("../services/openaq");
-const { getNearestCity } = require("../services/iqair");
 
 const COLLECTION_POINTS = [
   { lat: 52.3676, lng: 4.9041, name: "Amsterdam Centre" },
@@ -67,8 +67,37 @@ async function collect() {
   const collectedReadings = [];
 
   for (const point of COLLECTION_POINTS) {
+    const openMeteoReading = await getCurrentAirQuality(point.lat, point.lng);
+    const openMeteoPollutants = openMeteoReading?.pollutants || {};
+    const openMeteoHasUsablePollutants = Object.values({
+      pm25: openMeteoPollutants.pm25,
+      pm10: openMeteoPollutants.pm10,
+      no2: openMeteoPollutants.no2,
+      o3: openMeteoPollutants.o3
+    }).some((value) => Number.isFinite(Number(value)));
+
+    if (openMeteoHasUsablePollutants) {
+      const normalised = AQINormaliser.calculateFromPollutants({
+        pm25: openMeteoPollutants.pm25,
+        pm10: openMeteoPollutants.pm10,
+        no2: openMeteoPollutants.no2,
+        o3: openMeteoPollutants.o3
+      });
+
+      collectedReadings.push({
+        lat: openMeteoReading.lat ?? point.lat,
+        lng: openMeteoReading.lng ?? point.lng,
+        aqi: normalised.aqi,
+        category: normalised.category,
+        pm25: openMeteoPollutants.pm25 ?? null,
+        pm10: openMeteoPollutants.pm10 ?? null,
+        no2: openMeteoPollutants.no2 ?? null,
+        o3: openMeteoPollutants.o3 ?? null,
+        source: "open-meteo"
+      });
+    }
+
     const openaqResults = await getLatestReadings(point.lat, point.lng);
-    let hasOpenAqReadingForPoint = false;
 
     for (const location of openaqResults.slice(0, 3)) {
       const pollutants = extractPollutants(location);
@@ -89,28 +118,6 @@ async function collect() {
         no2: pollutants.no2 ?? null,
         o3: pollutants.o3 ?? null,
         source: "openaq"
-      });
-      hasOpenAqReadingForPoint = true;
-    }
-
-    if (hasOpenAqReadingForPoint) {
-      continue;
-    }
-
-    const iqairData = await getNearestCity(point.lat, point.lng);
-    const iqairAqi = iqairData?.current?.pollution?.aqius;
-
-    if (iqairAqi != null) {
-      collectedReadings.push({
-        lat: point.lat,
-        lng: point.lng,
-        aqi: Number(iqairAqi),
-        category: AQINormaliser.aqiToCategory(Number(iqairAqi)),
-        pm25: null,
-        pm10: null,
-        no2: null,
-        o3: null,
-        source: "iqair"
       });
     }
   }

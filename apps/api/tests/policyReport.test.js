@@ -8,13 +8,13 @@ jest.mock("../src/agents/PredictionAgent", () => ({
 jest.mock("../src/services/openaq", () => ({
   getLatestReadings: jest.fn()
 }));
-jest.mock("../src/services/iqair", () => ({
-  getNearestCity: jest.fn()
+jest.mock("../src/services/openMeteo", () => ({
+  getCurrentAirQuality: jest.fn()
 }));
 
 const pool = require("../src/db/pool");
 const { generateForecast } = require("../src/agents/PredictionAgent");
-const { getNearestCity } = require("../src/services/iqair");
+const { getCurrentAirQuality } = require("../src/services/openMeteo");
 const { getLatestReadings } = require("../src/services/openaq");
 const { getPolicyReport } = require("../src/routes/report");
 const {
@@ -53,8 +53,8 @@ describe("policy report generation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(new Date("2026-04-23T09:30:00.000Z"));
+    getCurrentAirQuality.mockResolvedValue(null);
     getLatestReadings.mockResolvedValue([]);
-    getNearestCity.mockResolvedValue(null);
   });
 
   afterEach(() => {

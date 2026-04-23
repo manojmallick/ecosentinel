@@ -1,6 +1,6 @@
 const pool = require("../db/pool");
 const AQINormaliser = require("./AQINormaliser");
-const { getNearestCity } = require("./iqair");
+const { getCurrentAirQuality } = require("./openMeteo");
 const { getLatestReadings } = require("./openaq");
 
 const DEFAULT_READING_MAX_AGE_MINUTES = 90;
@@ -158,23 +158,32 @@ function buildOpenAqReading(lat, lng, location) {
   };
 }
 
-function buildIqAirReading(lat, lng, iqairData) {
-  const aqi = Number(iqairData?.current?.pollution?.aqius);
-  if (!Number.isFinite(aqi)) {
+function buildOpenMeteoReading(lat, lng, currentAirQuality) {
+  const pollutants = currentAirQuality?.pollutants || {};
+  const usablePollutants = {
+    pm25: pollutants.pm25,
+    pm10: pollutants.pm10,
+    no2: pollutants.no2,
+    o3: pollutants.o3
+  };
+
+  if (!Object.values(usablePollutants).some((value) => Number.isFinite(Number(value)))) {
     return null;
   }
 
+  const normalised = AQINormaliser.calculateFromPollutants(usablePollutants);
+
   return {
-    lat: Number(iqairData?.location?.coordinates?.latitude ?? lat),
-    lng: Number(iqairData?.location?.coordinates?.longitude ?? lng),
-    aqi,
-    category: AQINormaliser.aqiToCategory(aqi),
-    pm25: null,
-    pm10: null,
-    no2: null,
-    o3: null,
-    source: "iqair",
-    recorded_at: iqairData?.current?.pollution?.ts || new Date().toISOString()
+    lat: Number(currentAirQuality?.lat ?? lat),
+    lng: Number(currentAirQuality?.lng ?? lng),
+    aqi: normalised.aqi,
+    category: normalised.category,
+    pm25: usablePollutants.pm25 ?? null,
+    pm10: usablePollutants.pm10 ?? null,
+    no2: usablePollutants.no2 ?? null,
+    o3: usablePollutants.o3 ?? null,
+    source: "open-meteo",
+    recorded_at: currentAirQuality?.recorded_at || new Date().toISOString()
   };
 }
 
@@ -240,9 +249,19 @@ async function persistReading(reading, { db = pool } = {}) {
 async function fetchRequestedLocationLiveReading({
   lat,
   lng,
-  iqairClient = getNearestCity,
+  openMeteoClient = getCurrentAirQuality,
   openaqClient = getLatestReadings
 }) {
+  const openMeteoReading = buildOpenMeteoReading(
+    lat,
+    lng,
+    await openMeteoClient(lat, lng)
+  );
+
+  if (openMeteoReading) {
+    return openMeteoReading;
+  }
+
   const openaqResults = await openaqClient(lat, lng, 10);
   const closestOpenAq = openaqResults
     .map((location) => ({
@@ -262,8 +281,7 @@ async function fetchRequestedLocationLiveReading({
     return closestOpenAq;
   }
 
-  const iqairData = await iqairClient(lat, lng);
-  return buildIqAirReading(lat, lng, iqairData);
+  return null;
 }
 
 async function resolveCurrentReading({
