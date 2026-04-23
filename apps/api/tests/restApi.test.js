@@ -61,6 +61,7 @@ describe("REST API route handlers", () => {
         no2: 22.1,
         o3: 55.3
       },
+      resolution: "local",
       source: "openaq",
       timestamp: "2026-04-18T14:00:00Z"
     });
@@ -71,6 +72,61 @@ describe("REST API route handlers", () => {
     ]);
     expect(pool.query.mock.calls[0][0]).toContain("$1::double precision - $3::double precision");
     expect(pool.query.mock.calls[0][0]).toContain("POWER(lat - $1::double precision, 2)");
+  });
+
+  it("falls back to the nearest available AQI reading when no local point exists", async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            lat: 52.3676,
+            lng: 4.9041,
+            aqi: 52,
+            category: "Moderate",
+            pm25: 11.2,
+            pm10: 19.5,
+            no2: 23.1,
+            o3: 56.3,
+            source: "openaq",
+            recorded_at: "2026-04-18T15:00:00Z"
+          }
+        ]
+      });
+
+    const response = createResponse();
+
+    await getCurrentAqi(
+      {
+        query: {
+          lat: 52.34368048931782,
+          lng: 4.8106501535156125,
+          radius_km: 5
+        }
+      },
+      response
+    );
+
+    expect(response.json).toHaveBeenCalledWith({
+      lat: 52.3676,
+      lng: 4.9041,
+      aqi: 52,
+      category: "Moderate",
+      color: "#ffff00",
+      pollutants: {
+        pm25: 11.2,
+        pm10: 19.5,
+        no2: 23.1,
+        o3: 56.3
+      },
+      resolution: "nearest_available",
+      source: "openaq",
+      timestamp: "2026-04-18T15:00:00Z"
+    });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query.mock.calls[1][0]).toContain("ORDER BY POWER(lat - $1::double precision, 2)");
   });
 
   it("rejects invalid AQI query parameters", async () => {

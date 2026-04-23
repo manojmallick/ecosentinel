@@ -145,8 +145,41 @@ describe("PredictionAgent", () => {
     expect(forecast.forecast).toHaveLength(24);
   });
 
+  it("falls back to the nearest available history when the requested location has no local readings", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ lat: 52.3676, lng: 4.9041 }]
+      })
+      .mockResolvedValueOnce({
+        rows: buildHistory(24)
+      });
+
+    const forecast = await generateForecast({
+      lat: 52.34368048931782,
+      lng: 4.8106501535156125,
+      now: new Date("2026-04-22T08:00:00.000Z"),
+      model: null,
+      config: {
+        inputHours: 24,
+        outputHours: 24,
+        modelPath: "../../ml/model/tfjs/model.json",
+        modelVersion: "lstm-v1.0.0"
+      },
+      signOutput: false
+    });
+
+    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query.mock.calls[1][0]).toContain("SELECT lat, lng");
+    expect(pool.query.mock.calls[2][0]).toContain("$1::double precision - 0.01");
+    expect(forecast.sourceWindowHours).toBe(24);
+    expect(forecast.forecast).toHaveLength(24);
+  });
+
   it("throws when no AQI history is available", async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] });
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] });
 
     await expect(
       generateForecast({

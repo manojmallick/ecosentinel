@@ -1,7 +1,7 @@
 const express = require("express");
 
-const pool = require("../db/pool");
 const { aqiToCategory, aqiToColor } = require("../services/AQINormaliser");
+const { findNearestCurrentReading } = require("../services/LocationResolution");
 
 const router = express.Router();
 
@@ -31,19 +31,11 @@ async function getCurrentAqi(req, res) {
   }
 
   const degreesRadius = radiusKm / 111;
-  const query = `
-    SELECT lat, lng, aqi, category, pm25, pm10, no2, o3, source, recorded_at
-    FROM aqi_readings
-    WHERE lat BETWEEN $1::double precision - $3::double precision
-      AND $1::double precision + $3::double precision
-      AND lng BETWEEN $2::double precision - $3::double precision
-      AND $2::double precision + $3::double precision
-    ORDER BY POWER(lat - $1::double precision, 2) + POWER(lng - $2::double precision, 2), recorded_at DESC
-    LIMIT 1
-  `;
-
-  const result = await pool.query(query, [lat, lng, degreesRadius]);
-  const row = result.rows[0];
+  const { reading: row, resolution } = await findNearestCurrentReading({
+    lat,
+    lng,
+    radiusDegrees: degreesRadius
+  });
 
   if (!row) {
     return res.status(404).json({
@@ -63,6 +55,7 @@ async function getCurrentAqi(req, res) {
       no2: row.no2,
       o3: row.o3
     },
+    resolution,
     source: row.source,
     timestamp: row.recorded_at
   });

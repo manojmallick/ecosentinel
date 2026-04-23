@@ -3,6 +3,7 @@ const path = require("path");
 
 const pool = require("../db/pool");
 const AuditLogger = require("../services/AuditLogger");
+const { findNearestHistoryAnchor } = require("../services/LocationResolution");
 
 const DEFAULT_INPUT_HOURS = 48;
 const DEFAULT_OUTPUT_HOURS = 24;
@@ -152,7 +153,7 @@ async function fetchRecentReadings({
   inputHours = getPredictionConfig().inputHours,
   db = pool
 }) {
-  const query = `
+  const localQuery = `
     SELECT recorded_at, aqi
     FROM aqi_readings
     WHERE lat BETWEEN $1::double precision - 0.05 AND $1::double precision + 0.05
@@ -161,8 +162,32 @@ async function fetchRecentReadings({
     LIMIT $3
   `;
 
-  const result = await db.query(query, [lat, lng, inputHours]);
-  return normaliseHistory(result.rows);
+  const localResult = await db.query(localQuery, [lat, lng, inputHours]);
+  if (localResult.rows.length > 0) {
+    return normaliseHistory(localResult.rows);
+  }
+
+  const anchor = await findNearestHistoryAnchor({
+    lat,
+    lng,
+    db
+  });
+
+  if (!anchor) {
+    return [];
+  }
+
+  const nearestQuery = `
+    SELECT recorded_at, aqi
+    FROM aqi_readings
+    WHERE lat BETWEEN $1::double precision - 0.01 AND $1::double precision + 0.01
+      AND lng BETWEEN $2::double precision - 0.01 AND $2::double precision + 0.01
+    ORDER BY recorded_at DESC
+    LIMIT $3
+  `;
+  const nearestResult = await db.query(nearestQuery, [anchor.lat, anchor.lng, inputHours]);
+
+  return normaliseHistory(nearestResult.rows);
 }
 
 async function forecastFromReadings(
