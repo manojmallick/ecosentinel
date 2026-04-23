@@ -5,7 +5,7 @@ import type { LatLngExpression } from "leaflet";
 import { Circle, CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
 
 import { getAqiBand } from "../lib/aqiColors";
-import type { AqiReading } from "../lib/api";
+import { formatReadingFreshness, formatReadingResolution, type AqiReading } from "../lib/api";
 
 type AQIMapClientProps = {
   readings: AqiReading[];
@@ -57,7 +57,10 @@ export default function AQIMapClient({ readings }: AQIMapClientProps) {
                   <div>
                     AQI {reading.aqi} · {reading.category}
                   </div>
-                  <div className="text-slate-500">Source: {reading.source}</div>
+                  <div className="text-slate-500">{formatReadingResolution(reading.resolution)}</div>
+                  <div className="text-slate-500">
+                    Source: {reading.source} · {formatReadingFreshness(reading.freshness)}
+                  </div>
                 </div>
               </Popup>
             </CircleMarker>

@@ -10,6 +10,11 @@ export type ForecastPoint = {
 export type ForecastResponse = {
   forecast: ForecastPoint[];
   generatedAt: string;
+  historyAnchor?: {
+    lat: number;
+    lng: number;
+  } | null;
+  historyResolution?: string;
   lat: number;
   lng: number;
   modelVersion: string;
@@ -62,6 +67,11 @@ export function createFallbackForecastResponse({
     lat,
     lng,
     generatedAt: now.toISOString(),
+    historyAnchor: {
+      lat,
+      lng
+    },
+    historyResolution: "preview",
     modelVersion,
     strategy: "preview",
     forecast: buildFallbackForecast(baseAqi)
@@ -91,4 +101,16 @@ export function summariseForecast(points: ForecastPoint[]) {
     peakAqi: worstPoint.aqi,
     peakHour: worstPoint.hour
   };
+}
+
+export function describeForecastHistoryResolution(historyResolution?: string) {
+  if (historyResolution === "local") {
+    return "Local AQI history";
+  }
+
+  if (historyResolution === "nearest_available") {
+    return "Nearest available AQI history";
+  }
+
+  return "Preview AQI history";
 }

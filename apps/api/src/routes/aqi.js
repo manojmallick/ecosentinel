@@ -1,7 +1,7 @@
 const express = require("express");
 
 const { aqiToCategory, aqiToColor } = require("../services/AQINormaliser");
-const { findNearestCurrentReading } = require("../services/LocationResolution");
+const { resolveCurrentReading } = require("../services/LocationResolution");
 
 const router = express.Router();
 
@@ -31,7 +31,7 @@ async function getCurrentAqi(req, res) {
   }
 
   const degreesRadius = radiusKm / 111;
-  const { reading: row, resolution } = await findNearestCurrentReading({
+  const { reading: row, resolution, freshness } = await resolveCurrentReading({
     lat,
     lng,
     radiusDegrees: degreesRadius
@@ -55,6 +55,7 @@ async function getCurrentAqi(req, res) {
       no2: row.no2,
       o3: row.o3
     },
+    freshness,
     resolution,
     source: row.source,
     timestamp: row.recorded_at

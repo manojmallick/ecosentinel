@@ -10,6 +10,7 @@ export type AqiReading = {
   aqi: number;
   category: string;
   color: string;
+  freshness: string;
   lat: number;
   lng: number;
   pointName: string;
@@ -19,6 +20,7 @@ export type AqiReading = {
     pm10: number | null;
     pm25: number | null;
   };
+  resolution: string;
   source: string;
   timestamp: string;
 };
@@ -65,6 +67,7 @@ function buildFallbackReading(point: CollectionPoint): AqiReading {
     aqi: point.fallbackAqi,
     category: band.label,
     color: band.color,
+    freshness: "preview",
     pointName: point.pointName,
     pollutants: {
       pm25: point.fallbackAqi / 4.4,
@@ -72,6 +75,7 @@ function buildFallbackReading(point: CollectionPoint): AqiReading {
       no2: point.fallbackAqi / 2,
       o3: point.fallbackAqi
     },
+    resolution: "preview",
     source: "simulated",
     timestamp: new Date("2026-04-22T07:00:00.000Z").toISOString()
   };
@@ -197,6 +201,38 @@ export function useAqiReadings() {
     readings,
     status
   };
+}
+
+export function formatReadingResolution(resolution: string) {
+  if (resolution === "requested_location") {
+    return "Requested location";
+  }
+
+  if (resolution === "local") {
+    return "Stored local reading";
+  }
+
+  if (resolution === "nearest_available") {
+    return "Nearest available reading";
+  }
+
+  return "Preview reading";
+}
+
+export function formatReadingFreshness(freshness: string) {
+  if (freshness === "live_provider") {
+    return "live provider";
+  }
+
+  if (freshness === "current") {
+    return "recently stored";
+  }
+
+  if (freshness === "stale") {
+    return "stale";
+  }
+
+  return "preview";
 }
 
 export function useForecast(baseReading?: AqiReading) {

@@ -10,6 +10,7 @@ function createReading(aqi: number): AqiReading {
     aqi,
     category: aqi >= 101 ? "USG" : aqi >= 51 ? "Moderate" : "Good",
     color: "#f97316",
+    freshness: "current",
     lat: 52.3676,
     lng: 4.9041,
     pointName: "Amsterdam Centre",
@@ -19,6 +20,7 @@ function createReading(aqi: number): AqiReading {
       pm10: 19,
       pm25: 12
     },
+    resolution: "local",
     source: "openaq",
     timestamp: "2026-04-23T09:00:00.000Z"
   };

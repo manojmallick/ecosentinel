@@ -137,6 +137,11 @@ describe("PredictionAgent", () => {
       lat: 52.3676,
       lng: 4.9041,
       generatedAt: "2026-04-22T08:00:00.000Z",
+      historyAnchor: {
+        lat: 52.3676,
+        lng: 4.9041
+      },
+      historyResolution: "local",
       modelVersion: "lstm-v1.0.0",
       strategy: "fallback",
       sourceWindowHours: 24,
@@ -172,6 +177,11 @@ describe("PredictionAgent", () => {
     expect(pool.query).toHaveBeenCalledTimes(3);
     expect(pool.query.mock.calls[1][0]).toContain("SELECT lat, lng");
     expect(pool.query.mock.calls[2][0]).toContain("$1::double precision - 0.01");
+    expect(forecast.historyResolution).toBe("nearest_available");
+    expect(forecast.historyAnchor).toEqual({
+      lat: 52.3676,
+      lng: 4.9041
+    });
     expect(forecast.sourceWindowHours).toBe(24);
     expect(forecast.forecast).toHaveLength(24);
   });

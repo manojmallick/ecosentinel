@@ -1,8 +1,16 @@
 jest.mock("../src/db/pool", () => ({
   query: jest.fn()
 }));
+jest.mock("../src/services/openaq", () => ({
+  getLatestReadings: jest.fn()
+}));
+jest.mock("../src/services/iqair", () => ({
+  getNearestCity: jest.fn()
+}));
 
 const pool = require("../src/db/pool");
+const { getNearestCity } = require("../src/services/iqair");
+const { getLatestReadings } = require("../src/services/openaq");
 const {
   answerCitizenQuestion,
   buildAdvisorContext,
@@ -29,6 +37,13 @@ function buildForecast() {
 describe("CitizenAdvisorAgent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-22T09:30:00Z"));
+    getLatestReadings.mockResolvedValue([]);
+    getNearestCity.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("fetches the nearest current AQI reading for advisor context", async () => {
@@ -54,18 +69,24 @@ describe("CitizenAdvisorAgent", () => {
       lng: 4.9041
     });
 
-    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("FROM aqi_readings"), [52.3676, 4.9041]);
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("FROM aqi_readings"), [
+      52.3676,
+      4.9041,
+      expect.any(Number)
+    ]);
     expect(reading).toEqual({
       lat: 52.3676,
       lng: 4.9041,
       aqi: 48,
       category: "Good",
+      freshness: "current",
       pollutants: {
         pm25: 10.2,
         pm10: 18.5,
         no2: 22.1,
         o3: 55.3
       },
+      resolution: "local",
       source: "openaq",
       timestamp: "2026-04-22T09:00:00Z"
     });
@@ -78,6 +99,8 @@ describe("CitizenAdvisorAgent", () => {
         lng: 4.9041,
         aqi: 48,
         category: "Good",
+        freshness: "current",
+        resolution: "local",
         source: "openaq",
         timestamp: "2026-04-22T09:00:00Z",
         pollutants: {
@@ -99,6 +122,7 @@ describe("CitizenAdvisorAgent", () => {
       current: {
         aqi: 48,
         category: "Good",
+        freshness: "current",
         source: "openaq",
         timestamp: "2026-04-22T09:00:00Z",
         pollutants: {
@@ -106,7 +130,8 @@ describe("CitizenAdvisorAgent", () => {
           pm10: 18.5,
           no2: 22.1,
           o3: 55.3
-        }
+        },
+        resolution: "local"
       },
       forecast: {
         generatedAt: "2026-04-22T10:00:00.000Z",
@@ -169,6 +194,8 @@ describe("CitizenAdvisorAgent", () => {
       reply: expect.stringContaining("current AQI is 82 (Moderate)"),
       contextAqi: 82,
       contextCategory: "Moderate",
+      contextFreshness: "current",
+      contextResolution: "local",
       timestamp: expect.any(String),
       strategy: "fallback"
     });
@@ -215,6 +242,8 @@ describe("CitizenAdvisorAgent", () => {
       reply: "Current AQI is good, and cycling looks reasonable this morning.",
       contextAqi: 48,
       contextCategory: "Good",
+      contextFreshness: "current",
+      contextResolution: "local",
       timestamp: expect.any(String),
       strategy: "llm"
     });
@@ -281,6 +310,8 @@ describe("CitizenAdvisorAgent", () => {
         reply: "Gemini says current AQI is good for a short cycle.",
         contextAqi: 48,
         contextCategory: "Good",
+        contextFreshness: "current",
+        contextResolution: "local",
         timestamp: expect.any(String),
         strategy: "llm"
       });
@@ -338,6 +369,8 @@ describe("CitizenAdvisorAgent", () => {
         reply: "Gemini Studio says conditions look good for cycling.",
         contextAqi: 48,
         contextCategory: "Good",
+        contextFreshness: "current",
+        contextResolution: "local",
         timestamp: expect.any(String),
         strategy: "llm"
       });

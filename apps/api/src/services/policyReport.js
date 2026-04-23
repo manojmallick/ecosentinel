@@ -47,6 +47,7 @@ function summariseForecast(forecast) {
 
   return {
     averageAqi,
+    historyResolution: forecast.historyResolution,
     peakAqi: peakPoint.aqi,
     peakHour: peakPoint.hour,
     strategy: forecast.strategy,
@@ -109,6 +110,8 @@ function buildPolicyReportData({
     currentReading: {
       aqi: Number(currentReading.aqi),
       category: currentReading.category,
+      freshness: currentReading.freshness,
+      resolution: currentReading.resolution,
       source: currentReading.source,
       timestamp: currentReading.timestamp,
       pollutants: currentReading.pollutants
@@ -156,7 +159,9 @@ async function renderPolicyReportPdf(reportData, { PdfDocument = PDFDocument } =
   doc.fillColor("#0f172a").fontSize(16).text("Current conditions");
   doc.moveDown(0.4);
   doc.fontSize(11).text(`Current AQI: ${reportData.currentReading.aqi} (${reportData.currentReading.category})`);
+  doc.text(`Location match: ${reportData.currentReading.resolution || "local"}`);
   doc.text(`Latest source: ${reportData.currentReading.source}`);
+  doc.text(`Freshness: ${reportData.currentReading.freshness || "current"}`);
   doc.text(`Recorded at: ${new Date(reportData.currentReading.timestamp).toLocaleString("en-GB")}`);
   doc.text(
     `Pollutants: PM2.5 ${reportData.currentReading.pollutants.pm25 ?? "-"}, PM10 ${reportData.currentReading.pollutants.pm10 ?? "-"}, NO2 ${reportData.currentReading.pollutants.no2 ?? "-"}, O3 ${reportData.currentReading.pollutants.o3 ?? "-"}`
@@ -178,6 +183,7 @@ async function renderPolicyReportPdf(reportData, { PdfDocument = PDFDocument } =
     doc.fontSize(11).text(`Peak forecast AQI: ${reportData.forecastSummary.peakAqi} at hour ${reportData.forecastSummary.peakHour}`);
     doc.text(`Average forecast AQI: ${reportData.forecastSummary.averageAqi}`);
     doc.text(`Forecast strategy: ${reportData.forecastSummary.strategy}`);
+    doc.text(`History resolution: ${reportData.forecastSummary.historyResolution || "local"}`);
     doc.text(`Model version: ${reportData.forecastSummary.modelVersion}`);
   } else {
     doc.fontSize(11).text("Forecast unavailable: the report was generated from current and historical measurements only.");

@@ -14,6 +14,8 @@ export type ChatMessage = {
 export type ChatReply = {
   contextAqi: number;
   contextCategory: string;
+  contextFreshness?: string;
+  contextResolution?: string;
   provider?: "fallback" | "gemini" | "openai" | "vertex";
   reply: string;
   source: "live" | "preview";

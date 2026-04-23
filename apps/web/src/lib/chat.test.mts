@@ -58,6 +58,7 @@ test("submitChatQuestion falls back to preview guidance when the API is unavaila
       aqi: 82,
       category: "Moderate",
       color: "#facc15",
+      freshness: "preview",
       lat: 52.3676,
       lng: 4.9041,
       pointName: "Amsterdam Centre",
@@ -67,6 +68,7 @@ test("submitChatQuestion falls back to preview guidance when the API is unavaila
         pm10: 18,
         pm25: 11
       },
+      resolution: "preview",
       source: "simulated",
       timestamp: "2026-04-23T08:00:00.000Z"
     },

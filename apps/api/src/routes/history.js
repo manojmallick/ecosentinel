@@ -1,6 +1,7 @@
 const express = require("express");
 
 const pool = require("../db/pool");
+const { findNearestHistoryAnchor } = require("../services/LocationResolution");
 
 const router = express.Router();
 
@@ -39,7 +40,21 @@ async function getHistory(req, res) {
   `;
 
   const result = await pool.query(query, [lat, lng, String(hours)]);
-  return res.json(result.rows);
+  if (result.rows.length > 0) {
+    return res.json(result.rows);
+  }
+
+  const anchor = await findNearestHistoryAnchor({
+    lat,
+    lng
+  });
+
+  if (!anchor) {
+    return res.json([]);
+  }
+
+  const nearestResult = await pool.query(query, [anchor.lat, anchor.lng, String(hours)]);
+  return res.json(nearestResult.rows);
 }
 
 router.get("/", (req, res, next) => {

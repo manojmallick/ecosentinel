@@ -7,7 +7,7 @@
 ![Railway](https://img.shields.io/badge/API-Railway-7c3aed)
 ![Vercel](https://img.shields.io/badge/Web-Vercel-000000)
 
-AI-powered, hyper-local air quality intelligence for Amsterdam. EcoSentinel combines real-time AQI collection, EPA normalisation, predictive air-quality modeling, policy-ready reporting, and a resident-facing dashboard into one open-source hackathon project.
+AI-powered, hyper-local air quality intelligence for Amsterdam. EcoSentinel combines scheduled AQI collection, requested-location live fallback reads, EPA normalisation, predictive air-quality modeling, policy-ready reporting, and a resident-facing dashboard into one open-source hackathon project.
 
 ## One-line pitch
 
@@ -20,7 +20,7 @@ Air quality data is often available but fragmented, delayed, or difficult for no
 - a live Amsterdam AQI dashboard
 - a forecast view with confidence bands
 - a drift alert when reality diverges from the model
-- a citizen advisor chat experience with graceful preview fallback
+- a citizen advisor chat experience backed by Gemini with graceful fallback
 - a downloadable PDF policy report
 - a gamified impact tracker for car-free trips
 
@@ -39,31 +39,41 @@ Air quality data is often available but fragmented, delayed, or difficult for no
 - `DataCollectorAgent` for multi-source AQI ingestion
 - `AQINormaliser` for EPA breakpoint conversion
 - `PredictionAgent` for forecast generation with deterministic fallback if a TFJS model is absent
-- `CitizenAdvisorAgent` for AQI-aware LLM responses with deterministic fallback
+- `CitizenAdvisorAgent` for AQI-aware Gemini responses with deterministic fallback
 - `AuditLogger` hooks for signed forecast payloads
 - `/api/report` PDF generation for policy stakeholders
+- requested-location live AQI fallback when stored data is stale or missing
+- explicit `resolution`, `freshness`, and forecast-history labels so the UI shows when data is local versus nearest-available
 
 ### Routes exposed today
 
 - `GET /api/aqi`
+- `GET /api/predict`
+- `POST /api/chat`
 - `GET /api/history`
 - `GET /api/health`
 - `GET /api/report`
 
 ### Important implementation note
 
-Some frontend flows are intentionally resilient to incomplete backend wiring. For example, the forecast and chat experiences degrade to preview mode when the corresponding live backend route or model artifact is unavailable. That keeps the demo usable while still showing the intended UX.
+The app is intentionally honest about data provenance. AQI cards, map popups, and the forecast panel show whether each response came from:
+
+- the requested location via a live provider call
+- stored local AQI history
+- the nearest available AQI history window
+- a frontend preview fallback when the backend is unavailable
 
 ## Demo flow
 
 The strongest judge demo sequence is:
 
 1. Open the dashboard and show live Amsterdam AQI hotspots.
-2. Highlight the forecast curve and explain the confidence band.
-3. Show the drift alert banner as the model-monitoring story.
-4. Open the citizen advisor chat page and ask a resident-style question.
-5. Generate the PDF policy report from `/api/report`.
-6. Log a car-free trip and show the impact score update.
+2. Point out the requested-location / nearest-available label on the primary AQI card.
+3. Highlight the forecast curve, confidence band, and history-resolution label.
+4. Show the drift alert banner as the model-monitoring story.
+5. Open the citizen advisor chat page and ask a resident-style question.
+6. Generate the PDF policy report from `/api/report`.
+7. Log a car-free trip and show the impact score update.
 
 ## Architecture
 
@@ -76,9 +86,11 @@ DataCollectorAgent ---> AQINormaliser ---> PostgreSQL / Timescale-style schema
       |                                         +--> /api/aqi
       |                                         +--> /api/history
       |
-      +--> PredictionAgent ---> signed forecast payloads / preview fallback
+      +--> requested-location live AQI fallback (OpenAQ / IQAir)
       |
-      +--> CitizenAdvisorAgent ---> chat UX / preview fallback
+      +--> PredictionAgent ---> signed forecast payloads / deterministic fallback
+      |
+      +--> CitizenAdvisorAgent ---> Gemini chat UX / fallback
       |
       +--> Policy report service ---> /api/report PDF
 
@@ -94,7 +106,7 @@ Next.js frontend
 
 - Frontend: Next.js 14, React 18, Tailwind CSS, Leaflet, Recharts
 - Backend: Express 4, Node.js 20, PostgreSQL, PDFKit
-- Data and intelligence: OpenAQ, IQAir, EPA AQI normalisation, forecast agent, citizen advisor agent
+- Data and intelligence: OpenAQ, IQAir, EPA AQI normalisation, TFJS-compatible forecast agent, Gemini citizen advisor agent
 - Deployment target: Vercel for `apps/web`, Railway for `apps/api`
 
 ## Quick start
@@ -135,7 +147,8 @@ At minimum for local development:
 Optional but recommended:
 
 - `IQAIR_API_KEY`
-- `OPENAI_API_KEY`
+- `LLM_PROVIDER=gemini`
+- `GEMINI_API_KEY`
 - `SIGNING_PRIVATE_KEY`
 - `SIGNING_PUBLIC_KEY`
 
@@ -192,7 +205,7 @@ Full setup instructions are in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ### `GET /api/aqi`
 
-Returns the nearest current AQI reading for a location.
+Returns the current AQI reading for a location. The payload labels whether it used the requested location, stored local data, or nearest-available fallback.
 
 Example:
 
@@ -224,6 +237,14 @@ curl "http://localhost:3001/api/report?lat=52.3676&lng=4.9041&hours=24" --output
 
 Returns service health status.
 
+### `GET /api/predict`
+
+Returns a 24-hour forecast with confidence bands, forecast strategy, signature metadata, and a `historyResolution` label so the UI can show whether the history window was local or nearest-available.
+
+### `POST /api/chat`
+
+Returns a Gemini-backed AQI advisor answer with live fallback. The response includes `provider`, `strategy`, and AQI context metadata used to answer the question.
+
 ## Project structure
 
 ```text
@@ -254,10 +275,10 @@ ecosentinel/
 
 ## Roadmap after submission
 
-- expose `/api/predict` and `/api/chat` as full production routes
 - add persistent user accounts and cloud-synced impact scores
-- connect a trained TFJS model artifact for live forecast inference
+- ship a stronger trained TFJS model artifact for richer location-specific forecasting
 - add scheduled policy report delivery and stakeholder alerts
+- expand collection coverage beyond the initial Amsterdam-focused deployment
 
 ## Sponsor note
 

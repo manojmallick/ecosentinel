@@ -21,6 +21,7 @@ describe("getHealth", () => {
 
     expect(response.json).toHaveBeenCalledWith({
       status: "ok",
+      collector: "enabled",
       service: "ecosentinel-api",
       version: "0.1.0",
       db: "connected",
@@ -41,6 +42,7 @@ describe("getHealth", () => {
     expect(response.status).toHaveBeenCalledWith(503);
     expect(response.json).toHaveBeenCalledWith({
       status: "degraded",
+      collector: "enabled",
       service: "ecosentinel-api",
       version: "0.1.0",
       db: "disconnected",

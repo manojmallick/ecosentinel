@@ -5,9 +5,17 @@ jest.mock("../src/db/pool", () => ({
 jest.mock("../src/agents/PredictionAgent", () => ({
   generateForecast: jest.fn()
 }));
+jest.mock("../src/services/openaq", () => ({
+  getLatestReadings: jest.fn()
+}));
+jest.mock("../src/services/iqair", () => ({
+  getNearestCity: jest.fn()
+}));
 
 const pool = require("../src/db/pool");
 const { generateForecast } = require("../src/agents/PredictionAgent");
+const { getNearestCity } = require("../src/services/iqair");
+const { getLatestReadings } = require("../src/services/openaq");
 const { getPolicyReport } = require("../src/routes/report");
 const {
   buildPolicyReportData,
@@ -44,6 +52,13 @@ function createCurrentReading(overrides = {}) {
 describe("policy report generation", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-23T09:30:00.000Z"));
+    getLatestReadings.mockResolvedValue([]);
+    getNearestCity.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("builds a policy report payload with history and forecast summaries", () => {
@@ -60,6 +75,7 @@ describe("policy report generation", () => {
           { hour: 2, aqi: 104, confidence: { low: 94, high: 115 } }
         ],
         generatedAt: "2026-04-23T09:00:00.000Z",
+        historyResolution: "local",
         modelVersion: "lstm-v1.0.0",
         strategy: "fallback"
       },
@@ -78,6 +94,7 @@ describe("policy report generation", () => {
     });
     expect(report.forecastSummary).toEqual({
       averageAqi: 97,
+      historyResolution: "local",
       peakAqi: 104,
       peakHour: 2,
       strategy: "fallback",
@@ -190,9 +207,13 @@ describe("policy report generation", () => {
   });
 
   it("returns 404 when there is no current AQI reading for the location", async () => {
-    pool.query.mockResolvedValueOnce({
-      rows: []
-    });
+    pool.query
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
 
     const response = createResponse();
 

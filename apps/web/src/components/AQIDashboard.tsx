@@ -8,7 +8,7 @@ import AQIMap from "./AQIMap";
 import DriftAlert from "./DriftAlert";
 import ImpactScore from "./ImpactScore";
 import { getAqiBand } from "../lib/aqiColors";
-import { useAqiReadings, useForecast } from "../lib/api";
+import { formatReadingFreshness, formatReadingResolution, useAqiReadings, useForecast } from "../lib/api";
 
 const ForecastChart = dynamic(() => import("./ForecastChart"), {
   loading: () => (
@@ -41,9 +41,9 @@ export default function AQIDashboard() {
                 Interactive AQI map, forecast outlook, citizen chat, drift monitoring, and community impact in one dashboard.
               </h1>
               <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
-                The dashboard now pairs live AQI hotspots with a 24-hour forecast curve, a guided handoff
-                into the citizen advisor experience, a drift monitor that warns when reality outruns the
-                model by 20 AQI points, and a gamified impact tracker for car-free trips.
+                The dashboard pairs live or stored AQI hotspots with a 24-hour forecast curve, a guided
+                handoff into the citizen advisor experience, a drift monitor that warns when reality outruns
+                the model by 20 AQI points, and a gamified impact tracker for car-free trips.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
@@ -53,7 +53,7 @@ export default function AQIDashboard() {
                   Open citizen advisor
                 </Link>
                 <div className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-200">
-                  Frontend ships with live API fallback
+                  Requested-location data with visible fallback labels
                 </div>
               </div>
             </div>
@@ -62,10 +62,13 @@ export default function AQIDashboard() {
               <div className="rounded-2xl border border-white/10 bg-slate-950/65 p-4">
                 <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Network status</div>
                 <div className="mt-3 text-2xl font-semibold text-white">
-                  {status === "live" ? "Live API polling" : "Fallback preview data"}
+                  {status === "live" ? "Live API polling" : "Preview fallback data"}
                 </div>
                 <div className="mt-2 text-sm text-slate-300">
                   Last refresh {new Date(lastUpdated).toLocaleTimeString()}
+                </div>
+                <div className="mt-2 text-sm text-slate-300">
+                  {formatReadingResolution(primaryReading.resolution)} · {formatReadingFreshness(primaryReading.freshness)}
                 </div>
                 <div className="mt-2 text-sm text-slate-300">
                   {locationStatus === "granted"

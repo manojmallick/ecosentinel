@@ -1,5 +1,5 @@
 import { describeAqi, formatPollutant, getAqiBand } from "../lib/aqiColors";
-import type { AqiReading } from "../lib/api";
+import { formatReadingFreshness, formatReadingResolution, type AqiReading } from "../lib/api";
 
 type AQICardProps = {
   reading: AqiReading;
@@ -26,7 +26,10 @@ export default function AQICard({ reading }: AQICardProps) {
       <div className="mt-6 flex items-end gap-4">
         <div className="text-5xl font-semibold text-white">{reading.aqi}</div>
         <div className="pb-2 text-sm text-slate-400">
-          Source {reading.source}
+          {formatReadingResolution(reading.resolution)}
+          <div className="mt-1">
+            Source {reading.source} · {formatReadingFreshness(reading.freshness)}
+          </div>
           <div className="mt-1">Updated {new Date(reading.timestamp).toLocaleTimeString()}</div>
         </div>
       </div>

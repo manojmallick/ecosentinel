@@ -28,10 +28,13 @@ Configure these environment variables on the Railway service:
 
 - `PORT=3001`
 - `DATABASE_URL=<railway-postgres-connection-string>`
+- `ENABLE_COLLECTOR=true`
+- `AQI_MAX_READING_AGE_MINUTES=90`
 - `OPENAQ_API_KEY=` (optional)
 - `IQAIR_API_KEY=<required for live secondary AQI source>`
-- `OPENAI_API_KEY=` (optional, chatbot falls back locally if omitted)
-- `OPENAI_MODEL=gpt-4o-mini`
+- `LLM_PROVIDER=gemini`
+- `GEMINI_API_KEY=<required for Gemini AI Studio chat>`
+- `GEMINI_MODEL=gemini-2.5-flash`
 - `SIGNING_PRIVATE_KEY=` (optional but recommended for signed forecasts)
 - `SIGNING_PUBLIC_KEY=` (optional but recommended for verification output)
 - `PREDICTION_INPUT_HOURS=48`
@@ -42,6 +45,10 @@ Configure these environment variables on the Railway service:
 ## Deployment Notes
 
 - The API health check path is `/api/health`.
+- The health payload now reports whether the collector is enabled.
 - The frontend should always point at the Railway public API URL through `NEXT_PUBLIC_API_URL`.
+- `/api/aqi` first uses stored local data, then falls back to a live provider read for the requested location when stored data is stale or missing.
+- `/api/predict` returns `historyResolution` so the frontend can show when the forecast used nearest-available history instead of a local history window.
+- `/api/chat` uses the AQI route plus the forecast route, so setting the AQI and Gemini variables is enough to make the chatbot judge-ready.
 - If the TFJS model artifact is not present in the deployment image, the prediction service will fall back to the deterministic forecast path instead of crashing.
 - Vercel and Railway both build from subdirectories in this monorepo, so the configured root directories matter.

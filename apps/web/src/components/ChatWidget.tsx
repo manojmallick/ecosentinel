@@ -11,7 +11,7 @@ import {
   type ChatMessage
 } from "../lib/chat";
 import { getAqiBand } from "../lib/aqiColors";
-import { useAqiReadings } from "../lib/api";
+import { formatReadingFreshness, formatReadingResolution, useAqiReadings } from "../lib/api";
 
 function formatMessageTime(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -102,8 +102,8 @@ export default function ChatWidget() {
           </div>
           <p className="mt-4 text-sm leading-7 text-slate-300">
             The chatbot uses the current AQI reading for {primaryReading.pointName.toLowerCase()} first,
-            then falls back to a local preview response if the backend route is unavailable or
-            location-specific AQI data cannot be fetched.
+            then labels whether that context came from the requested location, stored local history, or a
+            preview fallback response.
           </p>
           <p className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-400">
             AQI refresh {new Date(lastUpdated).toLocaleTimeString()} ·{" "}
@@ -196,7 +196,10 @@ export default function ChatWidget() {
 
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="text-sm text-slate-300">
-                Current source: <span className="font-medium text-white">{primaryReading.source}</span>
+                {formatReadingResolution(primaryReading.resolution)} ·{" "}
+                <span className="font-medium text-white">
+                  {primaryReading.source} / {formatReadingFreshness(primaryReading.freshness)}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 {error ? <div className="text-sm text-rose-300">{error}</div> : null}

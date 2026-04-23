@@ -1,8 +1,16 @@
 jest.mock("../src/db/pool", () => ({
   query: jest.fn()
 }));
+jest.mock("../src/services/openaq", () => ({
+  getLatestReadings: jest.fn()
+}));
+jest.mock("../src/services/iqair", () => ({
+  getNearestCity: jest.fn()
+}));
 
 const pool = require("../src/db/pool");
+const { getNearestCity } = require("../src/services/iqair");
+const { getLatestReadings } = require("../src/services/openaq");
 const { getCurrentAqi } = require("../src/routes/aqi");
 const { getHistory } = require("../src/routes/history");
 
@@ -16,9 +24,13 @@ function createResponse() {
 describe("REST API route handlers", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getLatestReadings.mockResolvedValue([]);
+    getNearestCity.mockResolvedValue(null);
   });
 
   it("returns the nearest current AQI reading", async () => {
+    const recordedAt = new Date().toISOString();
+
     pool.query.mockResolvedValueOnce({
       rows: [
         {
@@ -31,7 +43,7 @@ describe("REST API route handlers", () => {
           no2: 22.1,
           o3: 55.3,
           source: "openaq",
-          recorded_at: "2026-04-18T14:00:00Z"
+          recorded_at: recordedAt
         }
       ]
     });
@@ -61,9 +73,10 @@ describe("REST API route handlers", () => {
         no2: 22.1,
         o3: 55.3
       },
+      freshness: "current",
       resolution: "local",
       source: "openaq",
-      timestamp: "2026-04-18T14:00:00Z"
+      timestamp: recordedAt
     });
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("FROM aqi_readings"), [
       52.3676,
@@ -74,7 +87,90 @@ describe("REST API route handlers", () => {
     expect(pool.query.mock.calls[0][0]).toContain("POWER(lat - $1::double precision, 2)");
   });
 
+  it("uses a live requested-location provider reading when stored data is missing", async () => {
+    const recordedAt = new Date().toISOString();
+
+    pool.query
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      })
+      .mockResolvedValueOnce({
+        rows: []
+      });
+
+    getLatestReadings.mockResolvedValueOnce([
+      {
+        coordinates: {
+          latitude: 52.3437,
+          longitude: 4.8107
+        },
+        sensors: [
+          {
+            parameter: {
+              name: "pm25"
+            },
+            latest: {
+              value: 13.2,
+              datetime: {
+                utc: recordedAt
+              }
+            }
+          },
+          {
+            parameter: {
+              name: "o3"
+            },
+            latest: {
+              value: 50.1,
+              datetime: {
+                utc: recordedAt
+              }
+            }
+          }
+        ]
+      }
+    ]);
+
+    const response = createResponse();
+
+    await getCurrentAqi(
+      {
+        query: {
+          lat: 52.34368048931782,
+          lng: 4.8106501535156125,
+          radius_km: 5
+        }
+      },
+      response
+    );
+
+    expect(response.json).toHaveBeenCalledWith({
+      lat: 52.3437,
+      lng: 4.8107,
+      aqi: expect.any(Number),
+      category: expect.any(String),
+      color: expect.any(String),
+      pollutants: {
+        pm25: 13.2,
+        pm10: null,
+        no2: null,
+        o3: 50.1
+      },
+      freshness: "live_provider",
+      resolution: "requested_location",
+      source: "openaq",
+      timestamp: recordedAt
+    });
+    expect(getLatestReadings).toHaveBeenCalledWith(52.34368048931782, 4.8106501535156125, 10);
+    expect(pool.query.mock.calls[2][0]).toContain("INSERT INTO aqi_readings");
+  });
+
   it("falls back to the nearest available AQI reading when no local point exists", async () => {
+    const recordedAt = new Date().toISOString();
+
     pool.query
       .mockResolvedValueOnce({
         rows: []
@@ -91,7 +187,7 @@ describe("REST API route handlers", () => {
             no2: 23.1,
             o3: 56.3,
             source: "openaq",
-            recorded_at: "2026-04-18T15:00:00Z"
+            recorded_at: recordedAt
           }
         ]
       });
@@ -121,9 +217,10 @@ describe("REST API route handlers", () => {
         no2: 23.1,
         o3: 56.3
       },
+      freshness: "current",
       resolution: "nearest_available",
       source: "openaq",
-      timestamp: "2026-04-18T15:00:00Z"
+      timestamp: recordedAt
     });
     expect(pool.query).toHaveBeenCalledTimes(2);
     expect(pool.query.mock.calls[1][0]).toContain("ORDER BY POWER(lat - $1::double precision, 2)");

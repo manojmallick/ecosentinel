@@ -1,5 +1,6 @@
 const pool = require("../db/pool");
 const { callGeminiStudio, hasGeminiStudioConfig } = require("../services/GeminiStudioClient");
+const { resolveCurrentReading } = require("../services/LocationResolution");
 const { callVertexGemini, hasVertexGeminiConfig } = require("../services/VertexGeminiClient");
 
 const { generateForecast } = require("./PredictionAgent");
@@ -17,17 +18,13 @@ async function fetchCurrentReading({
   lng,
   db = pool
 }) {
-  const query = `
-    SELECT lat, lng, aqi, category, pm25, pm10, no2, o3, source, recorded_at
-    FROM aqi_readings
-    WHERE lat BETWEEN $1::double precision - 0.05 AND $1::double precision + 0.05
-      AND lng BETWEEN $2::double precision - 0.05 AND $2::double precision + 0.05
-    ORDER BY POWER(lat - $1::double precision, 2) + POWER(lng - $2::double precision, 2), recorded_at DESC
-    LIMIT 1
-  `;
-
-  const result = await db.query(query, [lat, lng]);
-  const row = result.rows[0];
+  const result = await resolveCurrentReading({
+    lat,
+    lng,
+    radiusDegrees: 5 / 111,
+    db
+  });
+  const row = result.reading;
 
   if (!row) {
     throw new Error("No AQI reading available for advisor context");
@@ -44,6 +41,8 @@ async function fetchCurrentReading({
       no2: row.no2,
       o3: row.o3
     },
+    freshness: result.freshness,
+    resolution: result.resolution,
     source: row.source,
     timestamp: row.recorded_at
   };
@@ -81,6 +80,8 @@ function buildAdvisorContext({
     current: {
       aqi: currentReading.aqi,
       category: currentReading.category,
+      freshness: currentReading.freshness,
+      resolution: currentReading.resolution,
       source: currentReading.source,
       timestamp: currentReading.timestamp,
       pollutants: currentReading.pollutants
@@ -287,6 +288,8 @@ async function answerCitizenQuestion({
       reply: fallbackReply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
+      contextFreshness: currentReading.freshness,
+      contextResolution: currentReading.resolution,
       timestamp: new Date().toISOString(),
       strategy: "fallback"
     };
@@ -318,6 +321,8 @@ async function answerCitizenQuestion({
       reply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
+      contextFreshness: currentReading.freshness,
+      contextResolution: currentReading.resolution,
       timestamp: new Date().toISOString(),
       strategy: "llm"
     };
@@ -327,6 +332,8 @@ async function answerCitizenQuestion({
       reply: fallbackReply,
       contextAqi: currentReading.aqi,
       contextCategory: currentReading.category,
+      contextFreshness: currentReading.freshness,
+      contextResolution: currentReading.resolution,
       timestamp: new Date().toISOString(),
       strategy: "fallback"
     };

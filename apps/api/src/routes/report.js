@@ -2,6 +2,7 @@ const express = require("express");
 
 const { generateForecast } = require("../agents/PredictionAgent");
 const pool = require("../db/pool");
+const { findNearestHistoryAnchor, resolveCurrentReading } = require("../services/LocationResolution");
 const { buildPolicyReportData, renderPolicyReportPdf } = require("../services/policyReport");
 
 const router = express.Router();
@@ -21,17 +22,13 @@ function parseHours(value) {
 }
 
 async function fetchCurrentReading({ lat, lng, db = pool }) {
-  const query = `
-    SELECT lat, lng, aqi, category, pm25, pm10, no2, o3, source, recorded_at
-    FROM aqi_readings
-    WHERE lat BETWEEN $1::double precision - 0.05 AND $1::double precision + 0.05
-      AND lng BETWEEN $2::double precision - 0.05 AND $2::double precision + 0.05
-    ORDER BY POWER(lat - $1::double precision, 2) + POWER(lng - $2::double precision, 2), recorded_at DESC
-    LIMIT 1
-  `;
-
-  const result = await db.query(query, [lat, lng]);
-  const row = result.rows[0];
+  const result = await resolveCurrentReading({
+    lat,
+    lng,
+    radiusDegrees: 5 / 111,
+    db
+  });
+  const row = result.reading;
 
   if (!row) {
     return null;
@@ -48,6 +45,8 @@ async function fetchCurrentReading({ lat, lng, db = pool }) {
       no2: row.no2,
       o3: row.o3
     },
+    freshness: result.freshness,
+    resolution: result.resolution,
     source: row.source,
     timestamp: row.recorded_at
   };
@@ -64,7 +63,22 @@ async function fetchHistory({ hours, lat, lng, db = pool }) {
   `;
 
   const result = await db.query(query, [lat, lng, String(hours)]);
-  return result.rows;
+  if (result.rows.length > 0) {
+    return result.rows;
+  }
+
+  const anchor = await findNearestHistoryAnchor({
+    lat,
+    lng,
+    db
+  });
+
+  if (!anchor) {
+    return [];
+  }
+
+  const nearestResult = await db.query(query, [anchor.lat, anchor.lng, String(hours)]);
+  return nearestResult.rows;
 }
 
 async function getPolicyReport(req, res) {

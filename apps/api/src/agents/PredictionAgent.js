@@ -164,7 +164,14 @@ async function fetchRecentReadings({
 
   const localResult = await db.query(localQuery, [lat, lng, inputHours]);
   if (localResult.rows.length > 0) {
-    return normaliseHistory(localResult.rows);
+    return {
+      readings: normaliseHistory(localResult.rows),
+      historyAnchor: {
+        lat,
+        lng
+      },
+      historyResolution: "local"
+    };
   }
 
   const anchor = await findNearestHistoryAnchor({
@@ -174,7 +181,11 @@ async function fetchRecentReadings({
   });
 
   if (!anchor) {
-    return [];
+    return {
+      readings: [],
+      historyAnchor: null,
+      historyResolution: "none"
+    };
   }
 
   const nearestQuery = `
@@ -187,7 +198,14 @@ async function fetchRecentReadings({
   `;
   const nearestResult = await db.query(nearestQuery, [anchor.lat, anchor.lng, inputHours]);
 
-  return normaliseHistory(nearestResult.rows);
+  return {
+    readings: normaliseHistory(nearestResult.rows),
+    historyAnchor: {
+      lat: Number(anchor.lat),
+      lng: Number(anchor.lng)
+    },
+    historyResolution: "nearest_available"
+  };
 }
 
 async function forecastFromReadings(
@@ -228,7 +246,7 @@ async function generateForecast({
   signOutput = Boolean(process.env.SIGNING_PRIVATE_KEY),
   auditLogger = AuditLogger
 }) {
-  const readings = await fetchRecentReadings({
+  const { readings, historyAnchor, historyResolution } = await fetchRecentReadings({
     lat,
     lng,
     inputHours: config.inputHours,
@@ -250,6 +268,8 @@ async function generateForecast({
     lat,
     lng,
     generatedAt: now.toISOString(),
+    historyAnchor,
+    historyResolution,
     modelVersion: config.modelVersion,
     strategy: result.strategy,
     sourceWindowHours: readings.length,

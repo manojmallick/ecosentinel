@@ -4,7 +4,7 @@ import { Area, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis }
 
 import { getAqiBand } from "../lib/aqiColors";
 import type { ForecastResponse } from "../lib/forecast";
-import { summariseForecast, toForecastChartData } from "../lib/forecast";
+import { describeForecastHistoryResolution, summariseForecast, toForecastChartData } from "../lib/forecast";
 
 type ForecastChartProps = {
   forecast: ForecastResponse;
@@ -24,7 +24,9 @@ export default function ForecastChart({ forecast, status }: ForecastChartProps) 
           <h2 className="mt-2 text-3xl font-semibold text-white">AQI outlook with confidence band</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
             {status === "live"
-              ? "Live prediction payload loaded from the backend forecast service."
+              ? forecast.historyResolution === "nearest_available"
+                ? "Forecast loaded from the backend using the nearest available AQI history window for this location."
+                : "Forecast loaded from the backend using the local AQI history window."
               : "Preview forecast generated locally until the /api/predict route is available."}
           </p>
         </div>
@@ -113,7 +115,10 @@ export default function ForecastChart({ forecast, status }: ForecastChartProps) 
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400">
         <div>Generated {new Date(forecast.generatedAt).toLocaleTimeString()}</div>
-        <div>Model {forecast.modelVersion}</div>
+        <div>{describeForecastHistoryResolution(forecast.historyResolution)}</div>
+        <div>
+          Model {forecast.modelVersion} · Strategy {forecast.strategy}
+        </div>
         <div>{forecast.signature ? "Signed forecast payload" : "Unsigned preview payload"}</div>
       </div>
     </section>
