@@ -54,7 +54,7 @@ describe("DataCollectorAgent", () => {
     });
   });
 
-  it("collects readings from OpenAQ and IQAir and inserts them in one batch", async () => {
+  it("prefers OpenAQ pollutant detail and only falls back to IQAir when OpenAQ has no usable reading", async () => {
     getLatestReadings
       .mockResolvedValueOnce([
         {
@@ -72,25 +72,20 @@ describe("DataCollectorAgent", () => {
       .mockResolvedValueOnce([]);
 
     getNearestCity
-      .mockResolvedValueOnce({
-        current: {
-          pollution: {
-            aqius: 61
-          }
-        }
-      })
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
 
     const insertedCount = await collect();
 
-    expect(insertedCount).toBe(2);
+    expect(insertedCount).toBe(1);
     expect(AQINormaliser.calculateFromPollutants).toHaveBeenCalledWith({
       pm25: 10.5,
       pm10: 18.1
     });
-    expect(AQINormaliser.aqiToCategory).toHaveBeenCalledWith(61);
+    expect(AQINormaliser.aqiToCategory).not.toHaveBeenCalled();
     expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(getNearestCity).toHaveBeenCalledTimes(2);
 
     const [query, values] = pool.query.mock.calls[0];
     expect(query).toContain("INSERT INTO aqi_readings");
@@ -103,16 +98,7 @@ describe("DataCollectorAgent", () => {
       18.1,
       null,
       null,
-      "openaq",
-      52.3676,
-      4.9041,
-      61,
-      "Moderate",
-      null,
-      null,
-      null,
-      null,
-      "iqair"
+      "openaq"
     ]);
   });
 

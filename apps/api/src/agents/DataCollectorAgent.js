@@ -68,6 +68,7 @@ async function collect() {
 
   for (const point of COLLECTION_POINTS) {
     const openaqResults = await getLatestReadings(point.lat, point.lng);
+    let hasOpenAqReadingForPoint = false;
 
     for (const location of openaqResults.slice(0, 3)) {
       const pollutants = extractPollutants(location);
@@ -89,6 +90,11 @@ async function collect() {
         o3: pollutants.o3 ?? null,
         source: "openaq"
       });
+      hasOpenAqReadingForPoint = true;
+    }
+
+    if (hasOpenAqReadingForPoint) {
+      continue;
     }
 
     const iqairData = await getNearestCity(point.lat, point.lng);
