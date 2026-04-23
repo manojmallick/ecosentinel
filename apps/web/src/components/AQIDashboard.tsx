@@ -19,6 +19,8 @@ const ForecastChart = dynamic(() => import("./ForecastChart"), {
   ssr: false
 });
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
+
 export default function AQIDashboard() {
   const { readings, status, lastUpdated, locationStatus } = useAqiReadings();
   const { forecast, status: forecastStatus } = useForecast(readings[0]);
@@ -28,6 +30,7 @@ export default function AQIDashboard() {
   }, readings[0]);
   const averageAqi = Math.round(readings.reduce((sum, reading) => sum + reading.aqi, 0) / readings.length);
   const averageBand = getAqiBand(averageAqi);
+  const reportHref = `${API_BASE_URL}/api/report?lat=${primaryReading.lat}&lng=${primaryReading.lng}&hours=24`;
 
   return (
     <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.22),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.18),_transparent_28%),linear-gradient(180deg,_#020617_0%,_#0f172a_100%)] px-6 py-10">
@@ -52,6 +55,14 @@ export default function AQIDashboard() {
                 >
                   Open citizen advisor
                 </Link>
+                <a
+                  className="inline-flex items-center justify-center rounded-full border border-sky-300/30 bg-sky-400/10 px-5 py-3 text-sm font-semibold text-sky-100 transition hover:border-sky-200/50 hover:bg-sky-400/20"
+                  href={reportHref}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Download PDF report
+                </a>
                 <div className="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-200">
                   Requested-location data with visible fallback labels
                 </div>
