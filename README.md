@@ -157,6 +157,29 @@ Optional but recommended:
 - `SIGNING_PRIVATE_KEY`
 - `SIGNING_PUBLIC_KEY`
 
+### Environment variable reference
+
+Root `.env` holds the web app settings and `apps/api/.env` the API settings (both templates are `.env.example`).
+
+| Variable | Used by | Meaning |
+|---|---|---|
+| `DATABASE_URL` | API | PostgreSQL connection string (required) |
+| `PORT` | API | API port, `3001` |
+| `NODE_ENV` | both | `development` or `production` |
+| `NEXT_PUBLIC_API_URL` | web | Where the web app finds the API (required) |
+| `NEXT_PUBLIC_MAP_LAT`, `NEXT_PUBLIC_MAP_LNG` | web | Initial map centre (default Amsterdam, `52.3676`, `4.9041`) |
+| `NEXT_PUBLIC_DRIFT_ALERT_THRESHOLD` | web | Drift level that triggers an alert, default `20` |
+| `OPENAQ_API_KEY` | API | Optional OpenAQ key, sent with air-quality requests when set |
+| `LLM_PROVIDER` | API | Which model answers citizen-advice chat: `gemini`, `vertex`, `openai`, or `auto` (the code default; picks one that is configured). A named provider with no credentials gives no AI answer |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | API | Gemini Developer API key and model (`gemini-2.5-flash`) |
+| `OPENAI_API_KEY`, `OPENAI_MODEL` | API | OpenAI key and model (`gpt-4o-mini`) |
+| `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `GOOGLE_VERTEX_MODEL` | API | Vertex AI project, region (`us-central1`) and model (`gemini-2.0-flash-001`) |
+| `GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64` | API | Base64 service-account JSON for Vertex (`GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON` also works) |
+| `SIGNING_PRIVATE_KEY`, `SIGNING_PUBLIC_KEY` | API | Key pair used to sign prediction output; signing is on only when the private key is set |
+| `PREDICTION_INPUT_HOURS`, `PREDICTION_OUTPUT_HOURS` | API | History window fed to the model (`48`) and forecast length (`24`) |
+| `PREDICTION_MODEL_VERSION` | API | Version label reported with predictions (`lstm-v1.0.0`) |
+| `TFJS_MODEL_PATH` | API | Path to the TensorFlow.js model, default `../../../ml/model/tfjs/model.json` |
+
 ### 4. Run the apps
 
 API:
